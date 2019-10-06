@@ -118,8 +118,10 @@ class _TimingPageState extends State<TimingPage> {
   @override
   Widget build(BuildContext context) {
     Widget body = ListView.separated(
+      reverse: true,
       itemCount: _list.length,
       itemBuilder: (context, i) {
+        i = _list.length - 1 - i;
         _TimeItem t = _list[i];
         return _buildItem(i, t.time ~/ 60, t.time % 60);
       },
