@@ -215,25 +215,49 @@ class TimingPage extends StatefulWidget {
 
 class _TimingPageState extends State<TimingPage> {
   List<_TimeItem> _list = <_TimeItem>[];
+  List<String> _candidates = <String>["工作", "学习", "休息", "睡觉"];
   int _editing;
   TextEditingController _controller;
+  bool _focusOnCandidates = false;
+  ScrollController _recordsController;
+  ScrollController _candidatesController;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController();
+    _recordsController = ScrollController()
+      ..addListener(() {
+        setState(() {
+          _focusOnCandidates = false;
+        });
+      });
+    _candidatesController = ScrollController()
+      ..addListener(() {
+        setState(() {
+          _focusOnCandidates = true;
+        });
+      });;
     _readList();
+    _readCandidates();
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    _recordsController.dispose();
+    _candidatesController.dispose();
     super.dispose();
   }
 
   static Future<File> get _localFile async {
     final path = await _localPath;
     return File('$path/record');
+  }
+
+  static Future<File> get _localCandidatesFile async {
+    final path = await _localPath;
+    return File('$path/candidates');
   }
 
   static Future<String> get _localPath async {
@@ -273,15 +297,60 @@ class _TimingPageState extends State<TimingPage> {
         .writeAsString(_list.map((item) => item?.toString() ?? "").join("\n"));
   }
 
+  void _readCandidates() async {
+    try {
+      final file = await _localCandidatesFile;
+      String s = await file.readAsString();
+      setState(() {
+        _candidates = s.split("\n");
+      });
+    } catch (e) {
+      setState(() {
+        _candidates = <String>["工作", "学习", "休息", "睡觉"];
+      });
+    }
+  }
+
+  void _saveCandidates() async {
+    final file = await _localCandidatesFile;
+    await file.writeAsString(_candidates.join("\n"));
+  }
+
   @override
   Widget build(BuildContext context) {
-    Widget body = ListView.builder(
-        reverse: true,
-        itemCount: _list.length,
-        itemBuilder: (context, i) {
-          i = _list.length - 1 - i;
-          return _buildItem(_list[i], i);
-        });
+    Widget body = Column(children: <Widget>[
+      Expanded(
+        flex: 3,
+        child: ListView.builder(
+            reverse: true,
+            controller: _recordsController,
+            itemCount: _list.length,
+            itemBuilder: (context, i) {
+              i = _list.length - 1 - i;
+              return _buildItem(_list[i], i);
+            }),
+      ),
+      Expanded(
+        flex: _focusOnCandidates ? 9 : 1,
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            border: Border(top: BorderSide(color: Colors.grey[200])),
+            boxShadow: <BoxShadow> [
+              BoxShadow()
+            ]
+          ),
+          child: ListView.separated(
+              controller: _candidatesController,
+              itemCount: _candidates.length,
+              itemBuilder: buildCandidateItem,
+              separatorBuilder: (context, index) {
+                return Divider(height: 1);
+              },
+          ),
+        ),
+      )
+    ]);
 
     body = DefaultTextStyle(
         style: TextStyle(
@@ -332,8 +401,8 @@ class _TimingPageState extends State<TimingPage> {
       return Container();
     }
     Widget ret = index != _editing
-      ? Text(item.content)
-      : TextField(controller: _controller);
+        ? Text(item.content)
+        : TextField(controller: _controller);
 
     ret = ListTile(
       leading: Icon(Icons.access_time, size: 24),
@@ -447,5 +516,56 @@ class _TimingPageState extends State<TimingPage> {
     ]);
 
     return ret;
+  }
+
+  Widget buildCandidateItem(BuildContext context, int index) {
+    Widget ret = ListTile(
+      leading: Icon(Icons.calendar_today),
+      title: GestureDetector(
+          onTap: () {
+            _addCurrentTime(_candidates[index]);
+            _candidateToTop(index);
+          },
+          child: Text(_candidates[index])),
+      trailing: Container(
+        width: 100,
+        child: Row(
+          children: <Widget>[
+            IconButton(
+              icon: Icon(Icons.arrow_upward),
+              onPressed: () {
+                setState(() {
+                  _candidateToTop(index);
+                  _saveCandidates();
+                });
+              },
+            ),
+            IconButton(
+              icon: Icon(Icons.delete),
+              onPressed: () {
+                setState(() {
+                  _candidates.removeAt(index);
+                  _saveCandidates();
+                });
+              },
+            )
+          ],
+        ),
+      ),
+    );
+
+    return ret;
+  }
+
+  bool _candidateToTop(int index) {
+    if (index < 0 || index >= _candidates.length) {
+      return false;
+    }
+    String tmp = _candidates[index];
+    for (int i = index - 1; i >= 0; i--) {
+      _candidates[i + 1] = _candidates[i];
+    }
+    _candidates[0] = tmp;
+    return true;
   }
 }
