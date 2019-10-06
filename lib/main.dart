@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:share/share.dart';
 
 void main() => runApp(TimingApp());
 
@@ -377,14 +377,24 @@ class _TimingPageState extends State<TimingPage> {
               onSelected: (result) {
                 switch (result) {
                   case 0:
+                    if(_list.isNotEmpty) {
+                      Share.share(_toCSV(","));
+                    }
+                    break;
+                  case 1:
                     setState(() {
                       _list = <_TimeItem>[];
                       _saveList();
                     });
+                    break;
                 }
               },
               itemBuilder: (context) {
                 return <PopupMenuItem<int>>[
+                  PopupMenuItem<int>(
+                    value: 0,
+                    child: Text('Share'),
+                  ),
                   PopupMenuItem<int>(
                     value: 0,
                     child: Text('Clear'),
@@ -577,6 +587,17 @@ class _TimingPageState extends State<TimingPage> {
     }
     _candidates[0] = tmp;
     return true;
+  }
+
+  String _toCSV(String delimiter) {
+    if(_list.isEmpty) return "";
+    StringBuffer sb = StringBuffer();
+    for(int i = 0; i < _list.length; i++) {
+      sb.writeln("${DateTimeUtils.dayToString(_list[i].day)}$delimiter" +
+          "${DateTimeUtils.timeToString(_list[i].time)}$delimiter" +
+          "${_list[i].content.replaceAll(delimiter, " ").replaceAll("\n", " ")}");
+    }
+    return sb.toString();
   }
 
   bool _candidateToSecond(int index) {
