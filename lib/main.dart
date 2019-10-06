@@ -217,15 +217,16 @@ class _TimingPageState extends State<TimingPage> {
   List<_TimeItem> _list = <_TimeItem>[];
   List<String> _candidates = <String>["工作", "学习", "休息", "睡觉"];
   int _editing;
-  TextEditingController _controller;
+  TextEditingController _editRecordController;
   bool _focusOnCandidates = false;
   ScrollController _recordsController;
   ScrollController _candidatesController;
+  static const int _maxCandidatesCount = 20;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController();
+    _editRecordController = TextEditingController();
     _recordsController = ScrollController()
       ..addListener(() {
         setState(() {
@@ -244,7 +245,7 @@ class _TimingPageState extends State<TimingPage> {
 
   @override
   void dispose() {
-    _controller.dispose();
+    _editRecordController.dispose();
     _recordsController.dispose();
     _candidatesController.dispose();
     super.dispose();
@@ -334,19 +335,16 @@ class _TimingPageState extends State<TimingPage> {
         flex: _focusOnCandidates ? 9 : 1,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.grey[100],
-            border: Border(top: BorderSide(color: Colors.grey[200])),
-            boxShadow: <BoxShadow> [
-              BoxShadow()
-            ]
-          ),
+              color: Colors.grey[100],
+              border: Border(top: BorderSide(color: Colors.grey[200])),
+              boxShadow: <BoxShadow>[BoxShadow()]),
           child: ListView.separated(
-              controller: _candidatesController,
-              itemCount: _candidates.length,
-              itemBuilder: buildCandidateItem,
-              separatorBuilder: (context, index) {
-                return Divider(height: 1);
-              },
+            controller: _candidatesController,
+            itemCount: _candidates.length,
+            itemBuilder: buildCandidateItem,
+            separatorBuilder: (context, index) {
+              return Divider(height: 1);
+            },
           ),
         ),
       )
@@ -360,40 +358,43 @@ class _TimingPageState extends State<TimingPage> {
         child: body);
 
     return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-        actions: <Widget>[
-          PopupMenuButton<int>(
-            onSelected: (result) {
-              switch (result) {
-                case 0:
-                  setState(() {
-                    _list = <_TimeItem>[];
-                    _saveList();
-                  });
-              }
-            },
-            itemBuilder: (context) {
-              return <PopupMenuItem<int>>[
-                PopupMenuItem<int>(
-                  value: 0,
-                  child: Text('Clear'),
-                )
-              ];
-            },
-          )
-        ],
-      ),
-      body: body,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _addCurrentTime(""),
-        tooltip: 'Add Current Time',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
-    );
+        appBar: AppBar(
+          // Here we take the value from the MyHomePage object that was created by
+          // the App.build method, and use it to set our appbar title.
+          title: Text(widget.title),
+          actions: <Widget>[
+            IconButton(
+              icon: Icon(Icons.add),
+              onPressed: _editing == null
+                  ? () {
+                      _addCurrentTime("");
+                      _editing = _list.length - 1;
+                      _editRecordController.clear();
+                    }
+                  : null,
+            ),
+            PopupMenuButton<int>(
+              onSelected: (result) {
+                switch (result) {
+                  case 0:
+                    setState(() {
+                      _list = <_TimeItem>[];
+                      _saveList();
+                    });
+                }
+              },
+              itemBuilder: (context) {
+                return <PopupMenuItem<int>>[
+                  PopupMenuItem<int>(
+                    value: 0,
+                    child: Text('Clear'),
+                  )
+                ];
+              },
+            )
+          ],
+        ),
+        body: body);
   }
 
   Widget _buildItem(_TimeItem item, int index) {
@@ -402,7 +403,10 @@ class _TimingPageState extends State<TimingPage> {
     }
     Widget ret = index != _editing
         ? Text(item.content)
-        : TextField(controller: _controller);
+        : TextField(
+            controller: _editRecordController,
+            autofocus: true,
+          );
 
     ret = ListTile(
       leading: Icon(Icons.access_time, size: 24),
@@ -418,7 +422,7 @@ class _TimingPageState extends State<TimingPage> {
                     onPressed: _editing == null
                         ? () {
                             setState(() {
-                              _controller.text = item.content;
+                              _editRecordController.text = item.content;
                               _editing = index;
                             });
                           }
@@ -429,9 +433,11 @@ class _TimingPageState extends State<TimingPage> {
                     iconSize: 24,
                     onPressed: () {
                       setState(() {
-                        _list[index].content = _controller.text;
+                        _list[index].content = _editRecordController.text;
                         _editing = null;
                         _saveList();
+                        _updateCandidateList(_editRecordController.text);
+                        _saveCandidates();
                       });
                     },
                   ),
@@ -522,10 +528,13 @@ class _TimingPageState extends State<TimingPage> {
     Widget ret = ListTile(
       leading: Icon(Icons.calendar_today),
       title: GestureDetector(
-          onTap: _editing != null ? null : () {
-            _addCurrentTime(_candidates[index]);
-            _candidateToTop(index);
-          },
+          onTap: _editing != null
+              ? null
+              : () {
+                  _addCurrentTime(_candidates[index]);
+                  _candidateToSecond(index);
+                  _saveCandidates();
+                },
           child: Text(_candidates[index])),
       trailing: Container(
         width: 100,
@@ -558,7 +567,8 @@ class _TimingPageState extends State<TimingPage> {
   }
 
   bool _candidateToTop(int index) {
-    if (index < 0 || index >= _candidates.length) {
+    if (index < 0 || index >= _candidates.length ||
+        _candidates.length < 2 || index == 0) {
       return false;
     }
     String tmp = _candidates[index];
@@ -567,5 +577,40 @@ class _TimingPageState extends State<TimingPage> {
     }
     _candidates[0] = tmp;
     return true;
+  }
+
+  bool _candidateToSecond(int index) {
+    if (index < 0 || index >= _candidates.length ||
+        _candidates.length < 2 || index == 1) {
+      return false;
+    }
+    String tmp = _candidates[index];
+    if(index > 1) {
+      for (int i = index - 1; i >= 1; i--) {
+        _candidates[i + 1] = _candidates[i];
+      }
+      _candidates[1] = tmp;
+      return true;
+    } else if(index == 0) {
+      _candidates[0] = _candidates[1];
+      _candidates[1] = tmp;
+      return true;
+    }
+    return false;
+  }
+
+  void _updateCandidateList(String item) {
+    if (item?.isEmpty ?? true) {
+      return;
+    }
+    if (_candidates.indexOf(item) >= 0) {
+      _candidateToSecond(_candidates.indexOf(item));
+      return;
+    }
+    _candidates.add(item);
+    _candidateToSecond(_candidates.length - 1);
+    while (_candidates.length > _maxCandidatesCount) {
+      _candidates.removeLast();
+    }
   }
 }
