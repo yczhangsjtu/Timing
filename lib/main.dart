@@ -237,7 +237,7 @@ class _TimingPageState extends State<TimingPage> {
         setState(() {
           _focusOnCandidates = true;
         });
-      });;
+      });
     _readList();
     _readCandidates();
   }
@@ -522,7 +522,7 @@ class _TimingPageState extends State<TimingPage> {
     Widget ret = ListTile(
       leading: Icon(Icons.calendar_today),
       title: GestureDetector(
-          onTap: () {
+          onTap: _editing != null ? null : () {
             _addCurrentTime(_candidates[index]);
             _candidateToTop(index);
           },
