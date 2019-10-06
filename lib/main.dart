@@ -1,7 +1,37 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:path_provider/path_provider.dart';
 
 void main() => runApp(TimingApp());
+
+class _TimeItem {
+  int time;
+  String content;
+
+  _TimeItem(this.time, this.content);
+
+  static String encodeBase64String(String s) {
+    return base64Encode(utf8.encode(s));
+  }
+
+  static String decodeBase64String(String s) {
+    return utf8.decode(base64Decode(s));
+  }
+
+  String toString() {
+    return "$time:${encodeBase64String(content)}";
+  }
+
+  static _TimeItem fromString(String s) {
+    int i = s.indexOf(":");
+    return i < 0 ? null : _TimeItem(
+        int.parse(s.substring(0, i)),
+        decodeBase64String(s.substring(i+1)));
+  }
+}
 
 class TimingApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -37,28 +67,46 @@ class TimingPage extends StatefulWidget {
 
 class _TimingPageState extends State<TimingPage> {
 
-  List<int> _list = <int>[];
+  List<_TimeItem> _list = <_TimeItem>[];
 
-  void _addCurrentTime() {
+  static Future<File> get _localFile async {
+    final path = await _localPath;
+    return File('$path/record');
+  }
+
+  static Future<String> get _localPath async {
+    final directory = await getApplicationDocumentsDirectory();
+    return directory.path;
+  }
+
+  void _addCurrentTime(String content) {
     var time = DateTime.now();
     int t = time.hour * 60 + time.minute;
     setState(() {
-      _list.add(t);
+      _list.add(_TimeItem(t, content));
       _saveList();
     });
   }
 
   void _readList() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _list = prefs.getStringList('list')?.map((s) => int.parse(s))?.toList() ??
-          <int>[];
-    });
+    try {
+      final file = await _localFile;
+      String s = await file.readAsString();
+      setState(() {
+        _list = s.split("\n")
+            .map((line) => _TimeItem.fromString(line))
+            .toList();
+      });
+    } catch(e) {
+      setState(() {
+        _list = <_TimeItem>[];
+      });
+    }
   }
 
   void _saveList() async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setStringList('list', _list.map((t) => '$t').toList());
+    final file = await _localFile;
+    await file.writeAsString(_list.map((item) => item.toString()).join("\n"));
   }
 
   @override
@@ -72,8 +120,8 @@ class _TimingPageState extends State<TimingPage> {
     Widget body = ListView.separated(
       itemCount: _list.length,
       itemBuilder: (context, i) {
-        int t = _list[i];
-        return _buildItem(i, t ~/ 60, t % 60);
+        _TimeItem t = _list[i];
+        return _buildItem(i, t.time ~/ 60, t.time % 60);
       },
       separatorBuilder: (context, i) {
         return Divider(height: 2, color: Colors.black26);
@@ -96,7 +144,7 @@ class _TimingPageState extends State<TimingPage> {
               switch(result) {
                 case 0:
                   setState(() {
-                    _list = <int>[];
+                    _list = <_TimeItem>[];
                     _saveList();
                   });
               }
@@ -114,7 +162,7 @@ class _TimingPageState extends State<TimingPage> {
       ),
       body: body,
       floatingActionButton: FloatingActionButton(
-        onPressed: _addCurrentTime,
+        onPressed: () => _addCurrentTime(""),
         tooltip: 'Add Current Time',
         child: Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
@@ -137,7 +185,7 @@ class _TimingPageState extends State<TimingPage> {
               iconSize: 24,
               onPressed: () {
                 setState(() {
-                  _list[index] = (_list[index] - 1) % 1440;
+                  _list[index].time = (_list[index].time - 1) % 1440;
                   _saveList();
                 });
               },
@@ -147,7 +195,7 @@ class _TimingPageState extends State<TimingPage> {
               iconSize: 24,
               onPressed: () {
                 setState(() {
-                  _list[index] = (_list[index] + 1) % 1440;
+                  _list[index].time = (_list[index].time + 1) % 1440;
                   _saveList();
                 });
               },
