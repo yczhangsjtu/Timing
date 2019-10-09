@@ -623,7 +623,7 @@ class _TimingPageState extends State<TimingPage> {
     if(_list.isEmpty) return "";
     StringBuffer sb = StringBuffer();
     for(int i = 0; i < _list.length; i++) {
-      sb.writeln("${DateTimeUtils.dayToString(_list[i].day)}$delimiter" +
+      sb.writeln("${DateTimeUtils.dayToString(_list[i].day)} " +
           "${DateTimeUtils.timeToString(_list[i].time)}$delimiter" +
           "${_list[i].content.replaceAll(delimiter, " ").replaceAll("\n", " ")}");
     }
