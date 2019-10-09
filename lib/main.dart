@@ -317,6 +317,13 @@ class _TimingPageState extends State<TimingPage> {
     await file.writeAsString(_candidates.join("\n"));
   }
 
+  void _clear() {
+    setState(() {
+      _list = <_TimeItem>[];
+      _saveList();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     Widget body = Column(children: <Widget>[
@@ -382,9 +389,25 @@ class _TimingPageState extends State<TimingPage> {
                     }
                     break;
                   case 1:
-                    setState(() {
-                      _list = <_TimeItem>[];
-                      _saveList();
+                    showDialog(context: context, builder: (context) {
+                      return AlertDialog(
+                        title: Text("Sure to clear?"),
+                        actions: <Widget>[
+                          FlatButton(
+                            child: Text("Cancel"),
+                            onPressed: () {
+                              Navigator.of(context).pop();
+                            },
+                          ),
+                          FlatButton(
+                            child: Text("Yes"),
+                            onPressed: () {
+                              _clear();
+                              Navigator.of(context).pop();
+                            },
+                          )
+                        ],
+                      );
                     });
                     break;
                 }
@@ -396,7 +419,7 @@ class _TimingPageState extends State<TimingPage> {
                     child: Text('Share'),
                   ),
                   PopupMenuItem<int>(
-                    value: 0,
+                    value: 1,
                     child: Text('Clear'),
                   )
                 ];
@@ -542,7 +565,7 @@ class _TimingPageState extends State<TimingPage> {
               ? null
               : () {
                   _addCurrentTime(_candidates[index]);
-                  _candidateToSecond(index);
+                  _candidateToTop(index);
                   _saveCandidates();
                 },
           child: Text(_candidates[index])),
@@ -600,36 +623,16 @@ class _TimingPageState extends State<TimingPage> {
     return sb.toString();
   }
 
-  bool _candidateToSecond(int index) {
-    if (index < 0 || index >= _candidates.length ||
-        _candidates.length < 2 || index == 1) {
-      return false;
-    }
-    String tmp = _candidates[index];
-    if(index > 1) {
-      for (int i = index - 1; i >= 1; i--) {
-        _candidates[i + 1] = _candidates[i];
-      }
-      _candidates[1] = tmp;
-      return true;
-    } else if(index == 0) {
-      _candidates[0] = _candidates[1];
-      _candidates[1] = tmp;
-      return true;
-    }
-    return false;
-  }
-
   void _updateCandidateList(String item) {
     if (item?.isEmpty ?? true) {
       return;
     }
     if (_candidates.indexOf(item) >= 0) {
-      _candidateToSecond(_candidates.indexOf(item));
+      _candidateToTop(_candidates.indexOf(item));
       return;
     }
     _candidates.add(item);
-    _candidateToSecond(_candidates.length - 1);
+    _candidateToTop(_candidates.length - 1);
     while (_candidates.length > _maxCandidatesCount) {
       _candidates.removeLast();
     }
