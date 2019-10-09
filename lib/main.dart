@@ -435,7 +435,14 @@ class _TimingPageState extends State<TimingPage> {
       return Container();
     }
     Widget ret = index != _editing
-        ? Text(item.content)
+        ? GestureDetector(
+            onTap: () {
+              _addCurrentTime(item.content);
+              _updateCandidateList(item.content);
+              _saveCandidates();
+            },
+            child: Text(item.content),
+          )
         : TextField(
             controller: _editRecordController,
             autofocus: true,
