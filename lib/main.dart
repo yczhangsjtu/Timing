@@ -281,8 +281,9 @@ class _TimingPageState extends State<TimingPage> {
       final file = await _localFile;
       String s = await file.readAsString();
       setState(() {
-        _list =
-            s.split("\n").map((line) => _TimeItem.fromString(line)).toList();
+        _list = s.split("\n").map((line) => _TimeItem.fromString(line))
+                .where((item) => item != null)
+                .toList();
         _list.sort(_TimeItem.compare);
       });
     } catch (e) {
