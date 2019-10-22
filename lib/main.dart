@@ -216,9 +216,9 @@ class TimingPage extends StatefulWidget {
 class _TimingPageState extends State<TimingPage> {
   List<_TimeItem> _list = <_TimeItem>[];
   List<String> _candidates = <String>["工作", "学习", "休息", "睡觉"];
+  List<String> _filteredCandidates = [];
   int _editing;
   TextEditingController _editRecordController;
-  bool _focusOnCandidates = false;
   ScrollController _recordsController;
   ScrollController _candidatesController;
   double _division = 0;
@@ -235,6 +235,15 @@ class _TimingPageState extends State<TimingPage> {
     _candidatesController.addListener(_onCandidateListScroll);
     _recordsController.addListener(_updateDivision);
     _candidatesController.addListener(_updateDivision);
+
+    _editRecordController.addListener(() {
+      setState(() {
+        _filteredCandidates = _candidates.where((s) {
+          return _editRecordController.text.isEmpty ||
+              s.startsWith(_editRecordController.text);
+        }).toList();
+      });
+    });
 
     _readList();
     _readCandidates();
@@ -388,7 +397,9 @@ class _TimingPageState extends State<TimingPage> {
                   boxShadow: <BoxShadow>[BoxShadow()]),
               child: ListView.separated(
                 controller: _candidatesController,
-                itemCount: _candidates.length,
+                itemCount: _editing == null
+                    ? _candidates.length
+                    : _filteredCandidates.length,
                 itemBuilder: buildCandidateItem,
                 separatorBuilder: (context, index) {
                   return Divider(height: 1);
@@ -613,22 +624,23 @@ class _TimingPageState extends State<TimingPage> {
   }
 
   Widget buildCandidateItem(BuildContext context, int index) {
+    var list = _editing == null ? _candidates : _filteredCandidates;
     Widget ret = ListTile(
       leading: Icon(Icons.calendar_today),
       title: GestureDetector(
           onTap: _editing != null
               ? () {
                 _editRecordController.value = TextEditingValue(
-                    text: _candidates[index],
-                    selection: TextSelection.collapsed(offset: _candidates[index].length)
+                    text: list[index],
+                    selection: TextSelection.collapsed(offset: list[index].length)
                 );
               }
               : () {
-                  _addCurrentTime(_candidates[index]);
+                  _addCurrentTime(list[index]);
                   _candidateToTop(index);
                   _saveCandidates();
                 },
-          child: Text(_candidates[index])),
+          child: Text(list[index])),
       trailing: Container(
         width: 100,
         child: Row(
@@ -646,7 +658,7 @@ class _TimingPageState extends State<TimingPage> {
               icon: Icon(Icons.delete),
               onPressed: () {
                 setState(() {
-                  _candidates.removeAt(index);
+                  list.removeAt(index);
                   _saveCandidates();
                 });
               },
