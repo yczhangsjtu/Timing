@@ -378,6 +378,9 @@ class _TimingPageState extends State<TimingPage> {
                       _addCurrentTime("");
                       _editing = _list.length - 1;
                       _editRecordController.clear();
+                      _recordsController.animateTo(0,
+                          duration: Duration(milliseconds: 100),
+                          curve: Curves.easeInOut);
                     }
                   : null,
             ),
