@@ -617,7 +617,12 @@ class _TimingPageState extends State<TimingPage> {
       leading: Icon(Icons.calendar_today),
       title: GestureDetector(
           onTap: _editing != null
-              ? null
+              ? () {
+                _editRecordController.value = TextEditingValue(
+                    text: _candidates[index],
+                    selection: TextSelection.collapsed(offset: _candidates[index].length)
+                );
+              }
               : () {
                   _addCurrentTime(_candidates[index]);
                   _candidateToTop(index);
