@@ -221,24 +221,21 @@ class _TimingPageState extends State<TimingPage> {
   bool _focusOnCandidates = false;
   ScrollController _recordsController;
   ScrollController _candidatesController;
+  double _division = 0;
+  static const double _offsetDifference = 200;
   static const int _maxCandidatesCount = 20;
 
   @override
   void initState() {
     super.initState();
     _editRecordController = TextEditingController();
-    _recordsController = ScrollController()
-      ..addListener(() {
-        setState(() {
-          _focusOnCandidates = false;
-        });
-      });
-    _candidatesController = ScrollController()
-      ..addListener(() {
-        setState(() {
-          _focusOnCandidates = true;
-        });
-      });
+    _recordsController = ScrollController();
+    _candidatesController = ScrollController();
+    _recordsController.addListener(_onRecordListScroll);
+    _candidatesController.addListener(_onCandidateListScroll);
+    _recordsController.addListener(_updateDivision);
+    _candidatesController.addListener(_updateDivision);
+
     _readList();
     _readCandidates();
   }
@@ -249,6 +246,37 @@ class _TimingPageState extends State<TimingPage> {
     _recordsController.dispose();
     _candidatesController.dispose();
     super.dispose();
+  }
+
+  void _onCandidateListScroll() {
+    _recordsController.removeListener(_onRecordListScroll);
+    _candidatesController.removeListener(_onCandidateListScroll);
+    _recordsController.animateTo(0,
+        duration: Duration(milliseconds: 100),
+        curve: Curves.easeInOut)
+    .whenComplete(() {
+      _recordsController.addListener(_onRecordListScroll);
+      _candidatesController.addListener(_onCandidateListScroll);
+    });
+  }
+
+  void _onRecordListScroll() {
+    _recordsController.removeListener(_onRecordListScroll);
+    _candidatesController.removeListener(_onCandidateListScroll);
+    _candidatesController.animateTo(0,
+        duration: Duration(milliseconds: 100),
+        curve: Curves.easeInOut)
+    .whenComplete(() {
+      _recordsController.addListener(_onRecordListScroll);
+      _candidatesController.addListener(_onCandidateListScroll);
+    });
+  }
+
+  void _updateDivision() {
+    setState(() {
+      _division = (_recordsController.offset - _candidatesController.offset)
+          .clamp(-_offsetDifference, _offsetDifference) / (2 * _offsetDifference) + 0.5;
+    });
   }
 
   static Future<File> get _localFile async {
@@ -281,9 +309,11 @@ class _TimingPageState extends State<TimingPage> {
       final file = await _localFile;
       String s = await file.readAsString();
       setState(() {
-        _list = s.split("\n").map((line) => _TimeItem.fromString(line))
-                .where((item) => item != null)
-                .toList();
+        _list = s
+            .split("\n")
+            .map((line) => _TimeItem.fromString(line))
+            .where((item) => item != null)
+            .toList();
         _list.sort(_TimeItem.compare);
       });
     } catch (e) {
@@ -327,32 +357,44 @@ class _TimingPageState extends State<TimingPage> {
 
   @override
   Widget build(BuildContext context) {
-    Widget body = Column(children: <Widget>[
-      Expanded(
-        flex: 3,
-        child: ListView.builder(
-            reverse: true,
-            controller: _recordsController,
-            itemCount: _list.length,
-            itemBuilder: (context, i) {
-              i = _list.length - 1 - i;
-              return _buildItem(_list[i], i);
-            }),
+    Widget body = Stack(children: <Widget>[
+      Positioned.fill(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: FractionallySizedBox(
+            heightFactor: _division * 0.6 + 0.2,
+            widthFactor: 1,
+            child: ListView.builder(
+                reverse: true,
+                controller: _recordsController,
+                itemCount: _list.length,
+                itemBuilder: (context, i) {
+                  i = _list.length - 1 - i;
+                  return _buildItem(_list[i], i);
+                }),
+          ),
+        ),
       ),
-      Expanded(
-        flex: _focusOnCandidates ? 9 : 1,
-        child: Container(
-          decoration: BoxDecoration(
-              color: Colors.grey[100],
-              border: Border(top: BorderSide(color: Colors.grey[200])),
-              boxShadow: <BoxShadow>[BoxShadow()]),
-          child: ListView.separated(
-            controller: _candidatesController,
-            itemCount: _candidates.length,
-            itemBuilder: buildCandidateItem,
-            separatorBuilder: (context, index) {
-              return Divider(height: 1);
-            },
+      Positioned.fill(
+        child: Align(
+          alignment: Alignment.bottomCenter,
+          child: FractionallySizedBox(
+            heightFactor: 0.8 - _division * 0.6,
+            widthFactor: 1,
+            child: Container(
+              decoration: BoxDecoration(
+                  color: Colors.grey[100],
+                  border: Border(top: BorderSide(color: Colors.grey[200])),
+                  boxShadow: <BoxShadow>[BoxShadow()]),
+              child: ListView.separated(
+                controller: _candidatesController,
+                itemCount: _candidates.length,
+                itemBuilder: buildCandidateItem,
+                separatorBuilder: (context, index) {
+                  return Divider(height: 1);
+                },
+              ),
+            ),
           ),
         ),
       )
@@ -388,31 +430,33 @@ class _TimingPageState extends State<TimingPage> {
               onSelected: (result) {
                 switch (result) {
                   case 0:
-                    if(_list.isNotEmpty) {
+                    if (_list.isNotEmpty) {
                       Share.share(_toCSV(","));
                     }
                     break;
                   case 1:
-                    showDialog(context: context, builder: (context) {
-                      return AlertDialog(
-                        title: Text("Sure to clear?"),
-                        actions: <Widget>[
-                          FlatButton(
-                            child: Text("Cancel"),
-                            onPressed: () {
-                              Navigator.of(context).pop();
-                            },
-                          ),
-                          FlatButton(
-                            child: Text("Yes"),
-                            onPressed: () {
-                              _clear();
-                              Navigator.of(context).pop();
-                            },
-                          )
-                        ],
-                      );
-                    });
+                    showDialog(
+                        context: context,
+                        builder: (context) {
+                          return AlertDialog(
+                            title: Text("Sure to clear?"),
+                            actions: <Widget>[
+                              FlatButton(
+                                child: Text("Cancel"),
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                              ),
+                              FlatButton(
+                                child: Text("Yes"),
+                                onPressed: () {
+                                  _clear();
+                                  Navigator.of(context).pop();
+                                },
+                              )
+                            ],
+                          );
+                        });
                     break;
                 }
               },
@@ -611,8 +655,10 @@ class _TimingPageState extends State<TimingPage> {
   }
 
   bool _candidateToTop(int index) {
-    if (index < 0 || index >= _candidates.length ||
-        _candidates.length < 2 || index == 0) {
+    if (index < 0 ||
+        index >= _candidates.length ||
+        _candidates.length < 2 ||
+        index == 0) {
       return false;
     }
     String tmp = _candidates[index];
@@ -624,9 +670,9 @@ class _TimingPageState extends State<TimingPage> {
   }
 
   String _toCSV(String delimiter) {
-    if(_list.isEmpty) return "";
+    if (_list.isEmpty) return "";
     StringBuffer sb = StringBuffer();
-    for(int i = 0; i < _list.length; i++) {
+    for (int i = 0; i < _list.length; i++) {
       sb.writeln("${DateTimeUtils.dayToString(_list[i].day)} " +
           "${DateTimeUtils.timeToString(_list[i].time)}$delimiter" +
           "${_list[i].content.replaceAll(delimiter, " ").replaceAll("\n", " ")}");
