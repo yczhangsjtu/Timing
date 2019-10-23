@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share/share.dart';
@@ -223,7 +224,7 @@ class _TimingPageState extends State<TimingPage> {
   ScrollController _candidatesController;
   double _division = 0;
   static const double _offsetDifference = 200;
-  static const int _maxCandidatesCount = 20;
+  static const int _maxCandidatesCount = 50;
 
   @override
   void initState() {
@@ -247,6 +248,9 @@ class _TimingPageState extends State<TimingPage> {
 
     _readList();
     _readCandidates();
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _updateDivision();
+    });
   }
 
   @override
