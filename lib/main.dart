@@ -5,6 +5,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share/share.dart';
+import 'package:shake/shake.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import 'settings.dart';
 
 void main() => runApp(TimingApp());
 
@@ -226,6 +230,23 @@ class _TimingPageState extends State<TimingPage> {
   static const double _offsetDifference = 200;
   static const int _maxCandidatesCount = 50;
 
+  ShakeDetector detector;
+  static const double _defaultThresholdGravity = 3.5;
+  double thresholdGravity = _defaultThresholdGravity;
+
+  void _initializeShakeDetector() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    if(detector != null) {
+      detector.stopListening();
+      detector = null;
+    }
+    detector = ShakeDetector.autoStart(
+        shakeThresholdGravity: prefs.getDouble("ThresholdGravity") ?? _defaultThresholdGravity,
+        onPhoneShake: () {
+          _addCurrentTime("");
+        });
+  }
+
   @override
   void initState() {
     super.initState();
@@ -251,6 +272,7 @@ class _TimingPageState extends State<TimingPage> {
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _updateDivision();
     });
+    _initializeShakeDetector();
   }
 
   @override
@@ -264,10 +286,10 @@ class _TimingPageState extends State<TimingPage> {
   void _onCandidateListScroll() {
     _recordsController.removeListener(_onRecordListScroll);
     _candidatesController.removeListener(_onCandidateListScroll);
-    _recordsController.animateTo(0,
-        duration: Duration(milliseconds: 100),
-        curve: Curves.easeInOut)
-    .whenComplete(() {
+    _recordsController
+        .animateTo(0,
+            duration: Duration(milliseconds: 100), curve: Curves.easeInOut)
+        .whenComplete(() {
       _recordsController.addListener(_onRecordListScroll);
       _candidatesController.addListener(_onCandidateListScroll);
     });
@@ -276,10 +298,10 @@ class _TimingPageState extends State<TimingPage> {
   void _onRecordListScroll() {
     _recordsController.removeListener(_onRecordListScroll);
     _candidatesController.removeListener(_onCandidateListScroll);
-    _candidatesController.animateTo(0,
-        duration: Duration(milliseconds: 100),
-        curve: Curves.easeInOut)
-    .whenComplete(() {
+    _candidatesController
+        .animateTo(0,
+            duration: Duration(milliseconds: 100), curve: Curves.easeInOut)
+        .whenComplete(() {
       _recordsController.addListener(_onRecordListScroll);
       _candidatesController.addListener(_onCandidateListScroll);
     });
@@ -288,7 +310,9 @@ class _TimingPageState extends State<TimingPage> {
   void _updateDivision() {
     setState(() {
       _division = (_recordsController.offset - _candidatesController.offset)
-          .clamp(-_offsetDifference, _offsetDifference) / (2 * _offsetDifference) + 0.5;
+                  .clamp(-_offsetDifference, _offsetDifference) /
+              (2 * _offsetDifference) +
+          0.5;
     });
   }
 
@@ -473,6 +497,12 @@ class _TimingPageState extends State<TimingPage> {
                           );
                         });
                     break;
+                  case 2:
+                    Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+                      return Settings();
+                    })).then((_) {
+                      _initializeShakeDetector();
+                    });
                 }
               },
               itemBuilder: (context) {
@@ -484,6 +514,10 @@ class _TimingPageState extends State<TimingPage> {
                   PopupMenuItem<int>(
                     value: 1,
                     child: Text('Clear'),
+                  ),
+                  PopupMenuItem<int>(
+                    value: 2,
+                    child: Text('Settings'),
                   )
                 ];
               },
@@ -634,11 +668,11 @@ class _TimingPageState extends State<TimingPage> {
       title: GestureDetector(
           onTap: _editing != null
               ? () {
-                _editRecordController.value = TextEditingValue(
-                    text: list[index],
-                    selection: TextSelection.collapsed(offset: list[index].length)
-                );
-              }
+                  _editRecordController.value = TextEditingValue(
+                      text: list[index],
+                      selection:
+                          TextSelection.collapsed(offset: list[index].length));
+                }
               : () {
                   _addCurrentTime(list[index]);
                   _candidateToTop(index);
