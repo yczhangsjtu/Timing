@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -11,141 +10,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as FLN;
 
 import 'settings.dart';
+import 'utils.dart';
 
 void main() => runApp(TimingApp());
 
-class DateTimeUtils {
-  static final weekDayNames = <String>["日", "一", "二", "三", "四", "五", "六"];
 
-  static String weekDayName(int day) {
-    return weekDayNames[day];
-  }
-
-  static int dayOfWeekByName(String day) {
-    for (int i = 0; i < weekDayNames.length; i++) {
-      if (weekDayNames[i] == day) {
-        return i;
-      }
-    }
-    return null;
-  }
-
-  static int today() {
-    var today = DateTime.now();
-    return _gregorianToJulian(today.year, today.month, today.day);
-  }
-
-  static int now() {
-    var now = DateTime.now();
-    return now.hour * 60 + now.minute;
-  }
-
-  static String durationToString(int minutes) {
-    if (minutes == 0) {
-      return "0m";
-    }
-    var h = minutes ~/ 60;
-    var m = minutes % 60;
-    // If m is 0, omit the minutes part
-    return "${h > 0 ? "${h}h" : ""}${m > 0 ? "${m}m" : ""}";
-  }
-
-  static String timeToString(int time) {
-    if (time == null) {
-      return null;
-    }
-    var h = time ~/ 60;
-    var m = time % 60;
-    return "$h:${m ~/ 10}${m % 10}";
-  }
-
-  static String dayToString(int day) {
-    if (day == null) {
-      return null;
-    }
-    var gregorian = _julianToGregorian(day);
-    var y = gregorian ~/ 10000;
-    var m = (gregorian % 10000) ~/ 100;
-    var d = gregorian % 100;
-    return "$y-$m-$d";
-  }
-
-  static String timeToStringRelative(int day, int time) {
-    if (day == today()) {
-      return timeToString(time);
-    }
-    if (day == today() - 1) {
-      return "昨天 ${timeToString(time)}";
-    }
-    if (day == today() - 2) {
-      return "前天 ${timeToString(time)}";
-    }
-    return "${dayToString(day)} ${timeToString(time)}";
-  }
-
-  static String dayToStringRelative(int day) {
-    if (day == today()) {
-      return "今天";
-    }
-    if (day == today() - 1) {
-      return "昨天";
-    }
-    if (day == today() - 2) {
-      return "前天";
-    }
-    return dayToString(day);
-  }
-
-  static int dayOfWeek(int day) {
-    if (day == null) {
-      return null;
-    }
-    return (day + 1) % 7;
-  }
-
-  static int yearMonthDayToInt(int y, int m, int d) {
-    if (y == null || m == null || d == null) {
-      return null;
-    }
-    return _gregorianToJulian(y, m, d);
-  }
-
-  static int yearMonthDayFromInt(int day) {
-    if (day == null) {
-      return null;
-    }
-    return _julianToGregorian(day);
-  }
-
-  static DateTime dateTimeFromInt(int day) {
-    int ymd = yearMonthDayFromInt(day);
-    return DateTime(ymd ~/ 10000, (ymd ~/ 100) % 100, ymd % 100);
-  }
-
-  // Refer to http://www.stiltner.org/book/bookcalc.htm for gregorian
-  // and julian date
-  static int _gregorianToJulian(int y, int m, int d) {
-    return (1461 * (y + 4800 + (m - 14) ~/ 12)) ~/ 4 +
-        (367 * (m - 2 - 12 * ((m - 14) ~/ 12))) ~/ 12 -
-        (3 * ((y + 4900 + (m - 14) ~/ 12) / 100)) ~/ 4 +
-        d -
-        32075;
-  }
-
-  static int _julianToGregorian(int jd) {
-    var l = jd + 68569;
-    var n = (4 * l) ~/ 146097;
-    l = l - (146097 * n + 3) ~/ 4;
-    var i = (4000 * (l + 1)) ~/ 1461001;
-    l = l - (1461 * i) ~/ 4 + 31;
-    var j = (80 * l) ~/ 2447;
-    var d = l - (2447 * j) ~/ 80;
-    l = j ~/ 11;
-    var m = j + 2 - (12 * l);
-    var y = 100 * (n - 49) + i + l;
-    return y * 10000 + m * 100 + d;
-  }
-}
 
 class _TimeItem {
   int day;
@@ -154,13 +23,6 @@ class _TimeItem {
 
   _TimeItem(this.day, this.time, this.content);
 
-  static String encodeBase64String(String s) {
-    return base64Encode(utf8.encode(s));
-  }
-
-  static String decodeBase64String(String s) {
-    return utf8.decode(base64Decode(s));
-  }
 
   String toString() {
     return "$day:$time:${encodeBase64String(content)}";
@@ -231,10 +93,9 @@ class _TimingPageState extends State<TimingPage> {
   double _division = 0;
   static const double _offsetDifference = 200;
   static const int _maxCandidatesCount = 50;
+  SharedPreferences prefs;
 
   ShakeDetector detector;
-  static const double _defaultThresholdGravity = 3.5;
-  double thresholdGravity = _defaultThresholdGravity;
 
   void _initializeNotification() {
     FLN.FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FLN.FlutterLocalNotificationsPlugin();
@@ -251,7 +112,6 @@ class _TimingPageState extends State<TimingPage> {
   }
 
   Future onSelectNotification(String payload) async {
-
   }
 
   void _showNotification(String title, String content) async {
@@ -274,14 +134,32 @@ class _TimingPageState extends State<TimingPage> {
         payload: 'item x');
   }
 
-  void _initializeShakeDetector() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
+  void _onSettingsChanged() {
+    setState(() {});
+    if(prefs.getDouble("ThresholdGravity") != Settings.thresholdGravity) {
+      prefs.setDouble("ThresholdGravity", Settings.thresholdGravity);
+      _resetShakeDetector();
+    }
+    _saveRules();
+  }
+
+  void _initializeSettings() async {
+    Settings.settings = ValueNotifier<SettingsValue>(
+        SettingsValue()
+    );
+    prefs = prefs ?? await SharedPreferences.getInstance();
+    double thresholdGravity = prefs.getDouble("ThresholdGravity");
+    Settings.settings.addListener(_onSettingsChanged);
+    Settings.set(thresholdGravity: thresholdGravity);
+  }
+
+  void _resetShakeDetector() async {
     if(detector != null) {
       detector.stopListening();
       detector = null;
     }
     detector = ShakeDetector.autoStart(
-        shakeThresholdGravity: prefs.getDouble("ThresholdGravity") ?? _defaultThresholdGravity,
+        shakeThresholdGravity: Settings.thresholdGravity,
         onPhoneShake: () {
           _addCurrentTime("");
           _showNotification("New Record Added", "Empty Record");
@@ -310,10 +188,11 @@ class _TimingPageState extends State<TimingPage> {
 
     _readList();
     _readCandidates();
+    _readRules();
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _updateDivision();
     });
-    _initializeShakeDetector();
+    _initializeSettings();
     _initializeNotification();
   }
 
@@ -322,6 +201,7 @@ class _TimingPageState extends State<TimingPage> {
     _editRecordController.dispose();
     _recordsController.dispose();
     _candidatesController.dispose();
+    Settings.settings.dispose();
     super.dispose();
   }
 
@@ -366,6 +246,11 @@ class _TimingPageState extends State<TimingPage> {
   static Future<File> get _localCandidatesFile async {
     final path = await _localPath;
     return File('$path/candidates');
+  }
+
+  static Future<File> get _localRulesFile async {
+    final path = await _localPath;
+    return File('$path/rules');
   }
 
   static Future<String> get _localPath async {
@@ -425,6 +310,45 @@ class _TimingPageState extends State<TimingPage> {
   void _saveCandidates() async {
     final file = await _localCandidatesFile;
     await file.writeAsString(_candidates.join("\n"));
+  }
+
+  void _readRules() async {
+    try {
+      final file = await _localRulesFile;
+      String s = await file.readAsString();
+      List<SmartSuggestionRule> rules = [];
+      s.split("\n").forEach((line) {
+        if(line == null || line.isEmpty || line.trim().isEmpty) {
+          return;
+        }
+        final parts = line.split(":");
+        if(parts.length != 4) {
+          return;
+        }
+        final startTime = int.parse(parts[0]);
+        final endTime = int.parse(parts[1]);
+        if(endTime <= startTime || startTime < 0 || endTime >= 1440) {
+          return;
+        }
+        rules.add(SmartSuggestionRule(
+          startTime: startTime,
+          endTime: endTime,
+          previousItem: decodeBase64String(parts[2]),
+          itemToAdd: decodeBase64String(parts[3])
+        ));
+      });
+      Settings.set(smartSuggestionRules: rules);
+    } catch (e) {
+      print(e);
+    }
+  }
+
+  void _saveRules() async {
+    final file = await _localRulesFile;
+    await file.writeAsString(
+        Settings.smartSuggestionRules.map((rule) {
+          return rule.serialize();
+        }).join("\n"));
   }
 
   void _clear() {
@@ -542,9 +466,7 @@ class _TimingPageState extends State<TimingPage> {
                   case 2:
                     Navigator.of(context).push(MaterialPageRoute(builder: (context) {
                       return Settings();
-                    })).then((_) {
-                      _initializeShakeDetector();
-                    });
+                    }));
                 }
               },
               itemBuilder: (context) {
