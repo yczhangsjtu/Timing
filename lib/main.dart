@@ -359,9 +359,10 @@ class _TimingPageState extends State<TimingPage> {
         ));
       });
       Settings.set(smartSuggestionRules: rules);
-      Settings.settings.addListener(_onSettingsChanged);
     } catch (e) {
       print(e);
+    } finally {
+      Settings.settings.addListener(_onSettingsChanged);
     }
   }
 
