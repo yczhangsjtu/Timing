@@ -57,6 +57,11 @@ class SmartSuggestionRule {
   String serialize() {
     return "$startTime:$endTime:${encodeBase64String(previousItem)}:${encodeBase64String(itemToAdd)}";
   }
+
+  bool match(int time, String lastItem) {
+    return startTime <= time && time <= endTime &&
+        (previousItem == lastItem || previousItem == "");
+  }
 }
 
 class SmartSuggestionRuleCard extends StatelessWidget {
@@ -254,7 +259,7 @@ class Settings extends StatefulWidget {
   }
 
   static void removeRule(int index) {
-    if(Settings.smartSuggestionRules.length > index && index > 0) {
+    if(Settings.smartSuggestionRules.length > index && index >= 0) {
       Settings.smartSuggestionRules.removeAt(index);
       set(smartSuggestionRules: Settings.smartSuggestionRules);
     }

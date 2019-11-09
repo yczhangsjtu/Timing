@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
@@ -94,6 +95,7 @@ class _TimingPageState extends State<TimingPage> {
   static const double _offsetDifference = 200;
   static const int _maxCandidatesCount = 50;
   SharedPreferences prefs;
+  Timer _timer;
 
   ShakeDetector detector;
 
@@ -161,9 +163,25 @@ class _TimingPageState extends State<TimingPage> {
     detector = ShakeDetector.autoStart(
         shakeThresholdGravity: Settings.thresholdGravity,
         onPhoneShake: () {
-          _addCurrentTime("");
-          _showNotification("New Record Added", "Empty Record");
+          var suggestion = _getSuggestion();
+          _addCurrentTime(suggestion);
+          _showNotification("New Record Added", suggestion);
         });
+  }
+
+  String _getSuggestion() {
+    if(Settings.smartSuggestionRules.isEmpty) {
+      return "";
+    }
+    final now = TimeOfDay.now();
+    final current = now.hour * 60 + now.minute;
+    final lastItem = _list.isEmpty ? "" : _list[_list.length-1].content;
+    for(int i = 0; i < Settings.smartSuggestionRules.length; i++) {
+      if(Settings.smartSuggestionRules[i].match(current, lastItem)) {
+        return Settings.smartSuggestionRules[i].itemToAdd;
+      }
+    }
+    return "";
   }
 
   @override
@@ -194,6 +212,9 @@ class _TimingPageState extends State<TimingPage> {
     });
     _initializeSettings();
     _initializeNotification();
+    _timer = Timer.periodic(Duration(seconds: 10), (_) {
+      setState(() {});
+    });
   }
 
   @override
@@ -202,6 +223,7 @@ class _TimingPageState extends State<TimingPage> {
     _recordsController.dispose();
     _candidatesController.dispose();
     Settings.settings.dispose();
+    _timer.cancel();
     super.dispose();
   }
 
@@ -391,11 +413,23 @@ class _TimingPageState extends State<TimingPage> {
                   boxShadow: <BoxShadow>[BoxShadow()]),
               child: ListView.separated(
                 controller: _candidatesController,
-                itemCount: _editing == null
+                itemCount: (_editing == null
                     ? _candidates.length
-                    : _filteredCandidates.length,
-                itemBuilder: buildCandidateItem,
+                    : _filteredCandidates.length) + 1,
+                itemBuilder: (context, index) {
+                  if(index == (_editing == null
+                      ? _candidates.length
+                      : _filteredCandidates.length)) {
+                    return Container(height: 100);
+                  }
+                  return buildCandidateItem(context, index);
+                },
                 separatorBuilder: (context, index) {
+                  if(index == (_editing == null
+                      ? _candidates.length
+                      : _filteredCandidates.length)) {
+                    return Container();
+                  }
                   return Divider(height: 1);
                 },
               ),
@@ -414,22 +448,19 @@ class _TimingPageState extends State<TimingPage> {
 
     return Scaffold(
         appBar: AppBar(
-          // Here we take the value from the MyHomePage object that was created by
-          // the App.build method, and use it to set our appbar title.
           title: Text(widget.title),
           actions: <Widget>[
             IconButton(
               icon: Icon(Icons.add),
               onPressed: _editing == null
                   ? () {
-                      _addCurrentTime("");
-                      _editing = _list.length - 1;
-                      _editRecordController.clear();
-                      _recordsController.animateTo(0,
-                          duration: Duration(milliseconds: 100),
-                          curve: Curves.easeInOut);
-                    }
-                  : null,
+                _addCurrentTime("");
+                _editing = _list.length - 1;
+                _editRecordController.text = "";
+                _recordsController.animateTo(0,
+                    duration: Duration(milliseconds: 100),
+                    curve: Curves.easeInOut);
+              } : null,
             ),
             PopupMenuButton<int>(
               onSelected: (result) {
@@ -488,7 +519,29 @@ class _TimingPageState extends State<TimingPage> {
             )
           ],
         ),
-        body: body);
+        body: body,
+        floatingActionButton: GestureDetector(
+          child: Container(
+            padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.all(Radius.circular(28)),
+              color: Colors.blueAccent
+            ),
+            child: Text("+${_getSuggestion()}",
+                style: TextStyle(fontSize: 18, height: 1, color: Colors.white))
+          ),
+          onTap: _editing == null
+              ? () {
+            final suggestion = _getSuggestion();
+            _addCurrentTime(suggestion);
+            _updateCandidateList(suggestion);
+            _recordsController.animateTo(0,
+                duration: Duration(milliseconds: 100),
+                curve: Curves.easeInOut);
+          }
+          : null,
+        ),
+    );
   }
 
   Widget _buildItem(_TimeItem item, int index) {
