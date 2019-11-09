@@ -214,6 +214,7 @@ class _TimingPageState extends State<TimingPage> {
       setState(() {});
     });
     _readRules();
+    _resetShakeDetector();
   }
 
   @override
