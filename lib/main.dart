@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share/share.dart';
 import 'package:shake/shake.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart' as FLN;
 
 import 'settings.dart';
 
@@ -234,6 +236,44 @@ class _TimingPageState extends State<TimingPage> {
   static const double _defaultThresholdGravity = 3.5;
   double thresholdGravity = _defaultThresholdGravity;
 
+  void _initializeNotification() {
+    FLN.FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FLN.FlutterLocalNotificationsPlugin();
+    var initializationSettingsAndroid = FLN.AndroidInitializationSettings('ic_action_alarm');
+    var initializationSettingsIOS = FLN.IOSInitializationSettings(
+        onDidReceiveLocalNotification: onDidReceiveLocalNotification);
+    var initializationSettings = FLN.InitializationSettings(
+        initializationSettingsAndroid, initializationSettingsIOS);
+    flutterLocalNotificationsPlugin.initialize(initializationSettings,
+        onSelectNotification: onSelectNotification);
+  }
+
+  Future onDidReceiveLocalNotification(int i, String a, String b, String c) async {
+  }
+
+  Future onSelectNotification(String payload) async {
+
+  }
+
+  void _showNotification(String title, String content) async {
+    FLN.FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FLN.FlutterLocalNotificationsPlugin();
+    var androidPlatformChannelSpecifics = FLN.AndroidNotificationDetails(
+        'timing channel id',
+        'timing channel name',
+        'notify that you have recorded a timing item',
+        style: FLN.AndroidNotificationStyle.Default,
+        enableLights: true,
+        vibrationPattern: Int64List.fromList([0, 1]),
+        importance: FLN.Importance.Max,
+        priority: FLN.Priority.High,
+        ticker: 'ticker');
+    var iOSPlatformChannelSpecifics = FLN.IOSNotificationDetails();
+    var platformChannelSpecifics = FLN.NotificationDetails(
+        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+        0, title, content, platformChannelSpecifics,
+        payload: 'item x');
+  }
+
   void _initializeShakeDetector() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     if(detector != null) {
@@ -244,6 +284,7 @@ class _TimingPageState extends State<TimingPage> {
         shakeThresholdGravity: prefs.getDouble("ThresholdGravity") ?? _defaultThresholdGravity,
         onPhoneShake: () {
           _addCurrentTime("");
+          _showNotification("New Record Added", "Empty Record");
         });
   }
 
@@ -273,6 +314,7 @@ class _TimingPageState extends State<TimingPage> {
       _updateDivision();
     });
     _initializeShakeDetector();
+    _initializeNotification();
   }
 
   @override
