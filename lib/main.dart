@@ -151,7 +151,6 @@ class _TimingPageState extends State<TimingPage> {
     );
     prefs = prefs ?? await SharedPreferences.getInstance();
     double thresholdGravity = prefs.getDouble("ThresholdGravity");
-    Settings.settings.addListener(_onSettingsChanged);
     Settings.set(thresholdGravity: thresholdGravity);
   }
 
@@ -206,7 +205,6 @@ class _TimingPageState extends State<TimingPage> {
 
     _readList();
     _readCandidates();
-    _readRules();
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _updateDivision();
     });
@@ -215,6 +213,7 @@ class _TimingPageState extends State<TimingPage> {
     _timer = Timer.periodic(Duration(seconds: 10), (_) {
       setState(() {});
     });
+    _readRules();
   }
 
   @override
@@ -360,6 +359,7 @@ class _TimingPageState extends State<TimingPage> {
         ));
       });
       Settings.set(smartSuggestionRules: rules);
+      Settings.settings.addListener(_onSettingsChanged);
     } catch (e) {
       print(e);
     }
