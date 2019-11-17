@@ -301,6 +301,7 @@ class _TimingPageState extends State<TimingPage> {
     setState(() {
       _list.add(_TimeItem(d, t, content));
       _saveList();
+      _showPersistentNotification();
     });
   }
 

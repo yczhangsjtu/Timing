@@ -21,7 +21,6 @@ var notificationManager: NotificationManager? = null
 class MainActivity: FlutterActivity() {
   private val CHANNEL = "notification_panel"
   private val NOTIFICATION_CHANNEL_ID = "timing_persistent"
-  private val channelCreated = false
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -42,6 +41,7 @@ class MainActivity: FlutterActivity() {
 
           notificationManager?.createNotificationChannel(notificationChannel)
         }
+        print("Show")
 
         val nBuilder = NotificationCompat.Builder(applicationContext, NOTIFICATION_CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_action_alarm)
@@ -52,6 +52,7 @@ class MainActivity: FlutterActivity() {
         remoteView.setTextViewText(R.id.title, call.arguments as String)
 
         val intent = Intent(applicationContext, NotificationReturn::class.java)
+                .setAction("add")
         remoteView.setOnClickPendingIntent(R.id.add,
                 PendingIntent.getBroadcast(applicationContext,
                         0, intent, PendingIntent.FLAG_UPDATE_CURRENT))
@@ -67,12 +68,11 @@ class MainActivity: FlutterActivity() {
       }
     }
   }
+}
 
-  private class NotificationReturn: BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-      methodChannel?.invokeMethod("add", "")
-    }
-
+public class NotificationReturn: BroadcastReceiver() {
+  override fun onReceive(context: Context?, intent: Intent?) {
+    print("OnReceive")
+    methodChannel?.invokeMethod("add", "")
   }
-
 }
