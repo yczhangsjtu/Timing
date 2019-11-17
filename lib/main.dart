@@ -4,6 +4,7 @@ import 'dart:async';
 
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share/share.dart';
 import 'package:shake/shake.dart';
@@ -96,6 +97,7 @@ class _TimingPageState extends State<TimingPage> {
   static const int _maxCandidatesCount = 50;
   SharedPreferences prefs;
   Timer _timer;
+  static const platform = const MethodChannel("notification_panel");
 
   ShakeDetector detector;
 
@@ -114,6 +116,22 @@ class _TimingPageState extends State<TimingPage> {
   }
 
   Future onSelectNotification(String payload) async {
+  }
+
+  void _showPersistentNotification() async {
+    try {
+      platform.invokeMethod("show", _getSuggestion());
+      platform.setMethodCallHandler(_onReceiveAddFromNotification);
+    } on PlatformException catch(e) {
+      print(e);
+    }
+  }
+
+  Future<void> _onReceiveAddFromNotification(MethodCall call) async {
+    switch(call.method) {
+      case "add":
+        _addCurrentTime(_getSuggestion());
+    }
   }
 
   void _showNotification(String title, String content) async {
@@ -363,6 +381,7 @@ class _TimingPageState extends State<TimingPage> {
       prefs = prefs ?? await SharedPreferences.getInstance();
       double thresholdGravity = prefs.getDouble("ThresholdGravity");
       Settings.set(thresholdGravity: thresholdGravity);
+      _showPersistentNotification();
     }
   }
 
@@ -383,6 +402,7 @@ class _TimingPageState extends State<TimingPage> {
 
   @override
   Widget build(BuildContext context) {
+    _showPersistentNotification();
     Widget body = Stack(children: <Widget>[
       Positioned.fill(
         child: Align(
