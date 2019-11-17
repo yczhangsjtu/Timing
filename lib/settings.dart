@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:collection/collection.dart';
+import 'package:flutter/scheduler.dart';
 
 import 'utils.dart';
 
@@ -384,7 +384,9 @@ class _SettingsState extends State<Settings> {
     }
     return WillPopScope(
       onWillPop: () {
-        Settings.set(thresholdGravity: _thresholdGravity);
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          Settings.set(thresholdGravity: _thresholdGravity);
+        });
         return new Future.value(true);
       },
       child: Scaffold(

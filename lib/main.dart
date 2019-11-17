@@ -149,9 +149,6 @@ class _TimingPageState extends State<TimingPage> {
     Settings.settings = ValueNotifier<SettingsValue>(
         SettingsValue()
     );
-    prefs = prefs ?? await SharedPreferences.getInstance();
-    double thresholdGravity = prefs.getDouble("ThresholdGravity");
-    Settings.set(thresholdGravity: thresholdGravity);
   }
 
   void _resetShakeDetector() async {
@@ -213,8 +210,7 @@ class _TimingPageState extends State<TimingPage> {
     _timer = Timer.periodic(Duration(seconds: 10), (_) {
       setState(() {});
     });
-    _readRules();
-    _resetShakeDetector();
+    _readSettings();
   }
 
   @override
@@ -334,7 +330,7 @@ class _TimingPageState extends State<TimingPage> {
     await file.writeAsString(_candidates.join("\n"));
   }
 
-  void _readRules() async {
+  void _readSettings() async {
     try {
       final file = await _localRulesFile;
       String s = await file.readAsString();
@@ -364,6 +360,9 @@ class _TimingPageState extends State<TimingPage> {
       print(e);
     } finally {
       Settings.settings.addListener(_onSettingsChanged);
+      prefs = prefs ?? await SharedPreferences.getInstance();
+      double thresholdGravity = prefs.getDouble("ThresholdGravity");
+      Settings.set(thresholdGravity: thresholdGravity);
     }
   }
 
