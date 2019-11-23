@@ -147,28 +147,37 @@ class SmartSuggestionRuleCard extends StatelessWidget {
               Expanded(
                 child: RichText(
                     text: TextSpan(
-                      text: "${DateTimeUtils.timeToString(rule.startTime, padZero: true)}-${DateTimeUtils.timeToString(rule.endTime, padZero: true)}",
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-                      children: <TextSpan> [
-                        TextSpan(
-                            text: rule.afterItem.isEmpty ? "  " : "  After ",
-                            style: TextStyle(fontWeight: FontWeight.normal, color: Colors.black)
-                        ),
-                        TextSpan(
-                            text: rule.afterItem,
-                            style: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey)
-                        ),
-                        TextSpan(
+                        text:
+                            "${DateTimeUtils.timeToString(rule.startTime, padZero: true)}-${DateTimeUtils.timeToString(rule.endTime, padZero: true)}",
+                        style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.blueAccent),
+                        children: <TextSpan>[
+                      TextSpan(
+                          text: rule.afterItem.isEmpty ? "  " : "  After ",
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              color: Colors.black)),
+                      TextSpan(
+                          text: rule.afterItem,
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              color: Colors.grey)),
+                      TextSpan(
                           text: " Add ",
-                          style: TextStyle(fontWeight: FontWeight.normal, fontSize: 18, color: Colors.black)
-                        ),
-                        TextSpan(
-                            text: rule.itemToAdd.isEmpty ? "Empty" : rule.itemToAdd,
-                            style: TextStyle(fontWeight: FontWeight.normal, fontSize: 18, color: Colors.grey)
-                        ),
-                      ]
-                    )
-                ),
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              fontSize: 18,
+                              color: Colors.black)),
+                      TextSpan(
+                          text:
+                              rule.itemToAdd.isEmpty ? "Empty" : rule.itemToAdd,
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              fontSize: 18,
+                              color: Colors.grey)),
+                    ])),
               ),
               IconButton(
                 icon: Icon(Icons.edit),
@@ -313,7 +322,10 @@ class SmartSuggestionRuleCard extends StatelessWidget {
               ButtonBar(
                 children: <Widget>[
                   FlatButton(
-                      child: Text("OK", style: TextStyle(color: Colors.blueAccent),),
+                      child: Text(
+                        "OK",
+                        style: TextStyle(color: Colors.blueAccent),
+                      ),
                       padding: bottomButtonPadding,
                       onPressed: onFinishEdit),
                 ],
@@ -477,6 +489,65 @@ class _SettingsState extends State<Settings> {
     super.dispose();
   }
 
+  void _editRule(int index) {
+    editing = index;
+    setState(() {});
+  }
+
+  void _finishEditRule() {
+    editing = null;
+    setState(() {});
+  }
+
+  void _finishEditAfterItem(int index) {
+    editingAfterItem = null;
+    Settings.setRuleAfterItem(index, controllerAfterItem.text);
+  }
+
+  void _cancelEditAfterItem() {
+    editingAfterItem = null;
+    setState(() {});
+  }
+
+  void _editAfterItem(int index) {
+    editingAfterItem = index;
+    controllerAfterItem.text = Settings.smartSuggestionRules[index].afterItem;
+    setState(() {});
+  }
+
+  void _finishEditToAddItem(int index) {
+    editingToAdd = null;
+    Settings.setRuleItemToAdd(index, controllerToAdd.text);
+  }
+
+  void _cancelEditToAddItem() {
+    editingToAdd = null;
+    setState(() {});
+  }
+
+  void _editToAddItem(int index) {
+      editingToAdd = index;
+      controllerToAdd.text =
+          Settings.smartSuggestionRules[index].itemToAdd;
+      setState(() {});
+  }
+
+  void _moveRuleUp(int index) {
+    if (Settings.switchRule(index - 1)) editing = index - 1;
+  }
+
+  void _moveRuleDown(int index) {
+    if (Settings.switchRule(index)) editing = index + 1;
+  }
+
+  void _moveRuleToTop(int index) {
+    editing = Settings.moveRuleToTop(index);
+  }
+
+  void _removeRule(int index) {
+    if (Settings.removeRule(index)) editing = null;
+  }
+
   @override
   Widget build(BuildContext context) {
     List<SmartSuggestionRuleCard> ruleCards = [];
@@ -485,73 +556,33 @@ class _SettingsState extends State<Settings> {
         Settings.smartSuggestionRules[i],
         i,
         editing == i,
-        editing == null
-            ? () {
-                editing = i;
-                setState(() {});
-              }
-            : null,
+        editing == null ? () => _editRule(i) : null,
         editingAfterItem == null && editingToAdd == null
-            ? () {
-                editing = null;
-                setState(() {});
-              }
+            ? _finishEditRule
             : null,
         editingAfterItem == i,
         controllerAfterItem,
-        () {
-          editingAfterItem = null;
-          Settings.setRuleAfterItem(i, controllerAfterItem.text);
-        },
-        () {
-          editingAfterItem = null;
-          setState(() {});
-        },
+        () => _finishEditAfterItem(i),
+        _cancelEditAfterItem,
         editing == i && editingAfterItem == null
-            ? () {
-                editingAfterItem = i;
-                controllerAfterItem.text =
-                    Settings.smartSuggestionRules[i].afterItem;
-                setState(() {});
-              }
+            ? () => _editAfterItem(i)
             : null,
         editingToAdd == i,
         controllerToAdd,
-        () {
-          editingToAdd = null;
-          Settings.setRuleItemToAdd(i, controllerToAdd.text);
-        },
-        () {
-          editingToAdd = null;
-          setState(() {});
-        },
-        editing == i && editingToAdd == null
-            ? () {
-                editingToAdd = i;
-                controllerToAdd.text =
-                    Settings.smartSuggestionRules[i].itemToAdd;
-                setState(() {});
-              }
+        () => _finishEditToAddItem(i),
+        _cancelEditToAddItem,
+        editing == i && editingToAdd == null ? () => _editToAddItem(i) : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () => _moveRuleUp(i)
             : null,
         editingToAdd == null && editingAfterItem == null
-            ? () {
-                if (Settings.switchRule(i - 1)) editing = i - 1;
-              }
+            ? () => _moveRuleDown(i)
             : null,
         editingToAdd == null && editingAfterItem == null
-            ? () {
-                if (Settings.switchRule(i)) editing = i + 1;
-              }
+            ? () => _moveRuleToTop(i)
             : null,
         editingToAdd == null && editingAfterItem == null
-            ? () {
-                editing = Settings.moveRuleToTop(i);
-              }
-            : null,
-        editingToAdd == null && editingAfterItem == null
-            ? () {
-                if (Settings.removeRule(i)) editing = null;
-              }
+            ? () => _removeRule(i)
             : null,
       ));
     }
@@ -610,7 +641,12 @@ class _SettingsState extends State<Settings> {
                             child: Container(
                               margin: EdgeInsets.only(top: 16),
                               height: 48,
-                              child: Center(child: Icon(Icons.add, size: 32, color: Colors.blueAccent,)),
+                              child: Center(
+                                  child: Icon(
+                                Icons.add,
+                                size: 32,
+                                color: Colors.blueAccent,
+                              )),
                             ),
                           )
                         : Container(),
