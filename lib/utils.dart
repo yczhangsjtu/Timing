@@ -10,7 +10,7 @@ String decodeBase64String(String s) {
 
 
 class DateTimeUtils {
-  static final weekDayNames = <String>["日", "一", "二", "三", "四", "五", "六"];
+  static final weekDayNames = <String>["SUN", "MON", "TUE", "WED", "THUR", "FRI", "SAT"];
 
   static String weekDayName(int day) {
     return weekDayNames[day];
@@ -72,23 +72,23 @@ class DateTimeUtils {
       return timeToString(time);
     }
     if (day == today() - 1) {
-      return "昨天 ${timeToString(time)}";
+      return "Yesterday ${timeToString(time)}";
     }
     if (day == today() - 2) {
-      return "前天 ${timeToString(time)}";
+      return "Day Before Yesterday ${timeToString(time)}";
     }
     return "${dayToString(day)} ${timeToString(time)}";
   }
 
   static String dayToStringRelative(int day) {
     if (day == today()) {
-      return "今天";
+      return "Today";
     }
     if (day == today() - 1) {
-      return "昨天";
+      return "Yesterday";
     }
     if (day == today() - 2) {
-      return "前天";
+      return "Day Before Yesterday";
     }
     return dayToString(day);
   }

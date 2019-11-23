@@ -137,6 +137,14 @@ class Settings extends StatefulWidget {
     }
   }
 
+  static void setRuleDays(int index, int days) {
+    if (Settings.smartSuggestionRules.length > index &&
+        index >= 0 && days != null) {
+      final rule = Settings.smartSuggestionRules[index];
+      setRule(index, rule.copyWith(days: days));
+    }
+  }
+
   @override
   State<StatefulWidget> createState() {
     return _SettingsState();

@@ -8,49 +8,60 @@ class SmartSuggestionRule {
   final int endTime;
   final String afterItem;
   final String itemToAdd;
+  final int days;
 
   SmartSuggestionRule(
       {this.startTime = 0,
-        this.endTime = 1439,
-        this.afterItem = "",
-        this.itemToAdd = ""})
+      this.endTime = 1439,
+      this.afterItem = "",
+      this.itemToAdd = "",
+      this.days = 127})
       : assert(startTime != null),
         assert(endTime != null),
         assert(afterItem != null),
-        assert(itemToAdd != null);
+        assert(itemToAdd != null),
+        assert(days != null && days >= 0 && days <= 127);
 
   factory SmartSuggestionRule.deserialize(String line) {
     if (line == null || line.isEmpty || line.trim().isEmpty) {
       return null;
     }
     final parts = line.split(":");
-    if (parts.length != 4) {
+    if (parts.length < 2) {
       return null;
     }
-    final startTime = int.parse(parts[0]);
-    final endTime = int.parse(parts[1]);
+    final startTime = parts.length <= 0 ? 0 : int.parse(parts[0]);
+    final endTime = parts.length <= 1 ? 1439 : int.parse(parts[1]);
     if (endTime <= startTime || startTime < 0 || endTime >= 1440) {
       return null;
     }
+    final afterItem = parts.length <= 2 ? "" : decodeBase64String(parts[2]);
+    final itemToAdd = parts.length <= 3 ? "" : decodeBase64String(parts[3]);
+    final days = parts.length <= 4 ? 127 : int.parse(parts[4]);
     return SmartSuggestionRule(
         startTime: startTime,
         endTime: endTime,
-        afterItem: decodeBase64String(parts[2]),
-        itemToAdd: decodeBase64String(parts[3]));
+        afterItem: afterItem,
+        itemToAdd: itemToAdd,
+        days: days);
   }
 
   SmartSuggestionRule copyWith(
-      {int startTime, int endTime, String afterItem, String itemToAdd}) {
+      {int startTime,
+      int endTime,
+      String afterItem,
+      String itemToAdd,
+      int days}) {
     return SmartSuggestionRule(
-      startTime: startTime ?? this.startTime,
-      endTime: endTime ?? this.endTime,
-      afterItem: afterItem ?? this.afterItem,
-      itemToAdd: itemToAdd ?? this.itemToAdd,
-    );
+        startTime: startTime ?? this.startTime,
+        endTime: endTime ?? this.endTime,
+        afterItem: afterItem ?? this.afterItem,
+        itemToAdd: itemToAdd ?? this.itemToAdd,
+        days: days ?? this.days);
   }
 
   String serialize() {
-    return "$startTime:$endTime:${encodeBase64String(afterItem)}:${encodeBase64String(itemToAdd)}";
+    return "$startTime:$endTime:${encodeBase64String(afterItem)}:${encodeBase64String(itemToAdd)}:$days";
   }
 
   String display() {
@@ -58,10 +69,14 @@ class SmartSuggestionRule {
         " Add $itemToAdd${afterItem.isNotEmpty ? " After $afterItem" : ""}";
   }
 
+  bool hasDay(int day) {
+    return day >= 0 && day <= 6 && (days & (1 << day)) > 0;
+  }
+
   bool match(int time, String lastItem) {
-    return startTime <= time &&
-        time <= endTime &&
-        (afterItem == lastItem || afterItem == "");
+    return startTime <= time && time <= endTime &&
+        (afterItem == lastItem || afterItem == "")  &&
+        hasDay(DateTimeUtils.dayOfWeek(DateTimeUtils.today()));
   }
 }
 
@@ -81,6 +96,7 @@ class SmartSuggestionRuleCard extends StatelessWidget {
   final VoidCallback onConfirmToAdd;
   final VoidCallback onCancelToAdd;
   final VoidCallback onEditToAdd;
+  final ValueChanged<int> onUpdateDays;
   final VoidCallback onMoveUp;
   final VoidCallback onMoveDown;
   final VoidCallback onMoveToTop;
@@ -104,12 +120,13 @@ class SmartSuggestionRuleCard extends StatelessWidget {
       this.onConfirmToAdd,
       this.onCancelToAdd,
       this.onEditToAdd,
+      this.onUpdateDays,
       this.onMoveUp,
       this.onMoveDown,
       this.onMoveToTop,
       this.onRemove,
       {this.bottomButtonSize = 20,
-        this.bottomButtonPadding = const EdgeInsets.all(2)});
+      this.bottomButtonPadding = const EdgeInsets.all(2)});
 
   Widget _buildDisplay(BuildContext context) {
     return Container(
@@ -118,7 +135,7 @@ class SmartSuggestionRuleCard extends StatelessWidget {
           padding: EdgeInsets.all(8),
           decoration: BoxDecoration(
               border:
-              Border(top: BorderSide(color: Colors.grey[300], width: 1))),
+                  Border(top: BorderSide(color: Colors.grey[300], width: 1))),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
@@ -126,36 +143,36 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                 child: RichText(
                     text: TextSpan(
                         text:
-                        "${DateTimeUtils.timeToString(rule.startTime, padZero: true)}-${DateTimeUtils.timeToString(rule.endTime, padZero: true)}",
+                            "${DateTimeUtils.timeToString(rule.startTime, padZero: true)}-${DateTimeUtils.timeToString(rule.endTime, padZero: true)}",
                         style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Colors.blueAccent),
                         children: <TextSpan>[
-                          TextSpan(
-                              text: rule.afterItem.isEmpty ? "  " : "  After ",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.normal,
-                                  color: Colors.black)),
-                          TextSpan(
-                              text: rule.afterItem,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.normal,
-                                  color: Colors.grey)),
-                          TextSpan(
-                              text: " Add ",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.normal,
-                                  fontSize: 18,
-                                  color: Colors.black)),
-                          TextSpan(
-                              text:
+                      TextSpan(
+                          text: rule.afterItem.isEmpty ? "  " : "  After ",
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              color: Colors.black)),
+                      TextSpan(
+                          text: rule.afterItem,
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              color: Colors.grey)),
+                      TextSpan(
+                          text: " Add ",
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              fontSize: 18,
+                              color: Colors.black)),
+                      TextSpan(
+                          text:
                               rule.itemToAdd.isEmpty ? "Empty" : rule.itemToAdd,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.normal,
-                                  fontSize: 18,
-                                  color: Colors.grey)),
-                        ])),
+                          style: TextStyle(
+                              fontWeight: FontWeight.normal,
+                              fontSize: 18,
+                              color: Colors.grey)),
+                    ])),
               ),
               IconButton(
                 icon: Icon(Icons.edit),
@@ -187,10 +204,10 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                     icon: Icon(Icons.edit),
                     onPressed: () {
                       showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
-                              hour: rule.startTime ~/ 60,
-                              minute: rule.startTime % 60))
+                              context: context,
+                              initialTime: TimeOfDay(
+                                  hour: rule.startTime ~/ 60,
+                                  minute: rule.startTime % 60))
                           .then((time) {
                         if (time == null) return;
                         Settings.setRuleStartTime(
@@ -213,10 +230,10 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                     icon: Icon(Icons.edit),
                     onPressed: () {
                       showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
-                              hour: rule.endTime ~/ 60,
-                              minute: rule.endTime % 60))
+                              context: context,
+                              initialTime: TimeOfDay(
+                                  hour: rule.endTime ~/ 60,
+                                  minute: rule.endTime % 60))
                           .then((time) {
                         if (time == null) return;
                         Settings.setRuleEndTime(
@@ -236,17 +253,17 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                   ),
                   editingAfterItem
                       ? Row(
-                    children: <Widget>[
-                      IconButton(
-                          icon: Icon(Icons.check),
-                          onPressed: onConfirmAfterItem),
-                      IconButton(
-                          icon: Icon(Icons.clear),
-                          onPressed: onCancelAfterItem)
-                    ],
-                  )
+                          children: <Widget>[
+                            IconButton(
+                                icon: Icon(Icons.check),
+                                onPressed: onConfirmAfterItem),
+                            IconButton(
+                                icon: Icon(Icons.clear),
+                                onPressed: onCancelAfterItem)
+                          ],
+                        )
                       : IconButton(
-                      icon: Icon(Icons.edit), onPressed: onEditAfterItem)
+                          icon: Icon(Icons.edit), onPressed: onEditAfterItem)
                 ],
               ),
               Row(
@@ -259,18 +276,32 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                   ),
                   editingToAdd
                       ? Row(
-                    children: <Widget>[
-                      IconButton(
-                          icon: Icon(Icons.check),
-                          onPressed: onConfirmToAdd),
-                      IconButton(
-                          icon: Icon(Icons.clear),
-                          onPressed: onCancelToAdd)
-                    ],
-                  )
+                          children: <Widget>[
+                            IconButton(
+                                icon: Icon(Icons.check),
+                                onPressed: onConfirmToAdd),
+                            IconButton(
+                                icon: Icon(Icons.clear),
+                                onPressed: onCancelToAdd)
+                          ],
+                        )
                       : IconButton(
-                      icon: Icon(Icons.edit), onPressed: onEditToAdd)
+                          icon: Icon(Icons.edit), onPressed: onEditToAdd)
                 ],
+              ),
+              Wrap(
+                children: [0, 1, 2, 3, 4, 5, 6].map((day) {
+                  return Row(mainAxisSize: MainAxisSize.min, children: <Widget>[
+                    Checkbox(
+                        value: rule.hasDay(day),
+                        onChanged: (bool value) {
+                          onUpdateDays(value
+                              ? rule.days | (1 << day)
+                              : rule.days & (~(1 << day)));
+                        }),
+                    Text(DateTimeUtils.weekDayName(day))
+                  ]);
+                }).toList(),
               ),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -351,7 +382,6 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
     super.dispose();
   }
 
-
   void _onSettingsChanged() {
     setState(() {});
   }
@@ -370,16 +400,17 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
             : null,
         editingAfterItem == i,
         controllerAfterItem,
-            () => _finishEditAfterItem(i),
+        () => _finishEditAfterItem(i),
         _cancelEditAfterItem,
         editing == i && editingAfterItem == null
             ? () => _editAfterItem(i)
             : null,
         editingToAdd == i,
         controllerToAdd,
-            () => _finishEditToAddItem(i),
+        () => _finishEditToAddItem(i),
         _cancelEditToAddItem,
         editing == i && editingToAdd == null ? () => _editToAddItem(i) : null,
+        (days) => _onEditDays(i, days),
         editingToAdd == null && editingAfterItem == null
             ? () => _moveRuleUp(i)
             : null,
@@ -400,20 +431,20 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
         children: <Widget>[
           editing == null
               ? GestureDetector(
-            onTap: () {
-              Settings.addRule(SmartSuggestionRule(), index: 0);
-            },
-            child: Container(
-              margin: EdgeInsets.only(top: 16),
-              height: 48,
-              child: Center(
-                  child: Icon(
-                    Icons.add,
-                    size: 32,
-                    color: Colors.blueAccent,
-                  )),
-            ),
-          )
+                  onTap: () {
+                    Settings.addRule(SmartSuggestionRule(), index: 0);
+                  },
+                  child: Container(
+                    margin: EdgeInsets.only(top: 16),
+                    height: 48,
+                    child: Center(
+                        child: Icon(
+                      Icons.add,
+                      size: 32,
+                      color: Colors.blueAccent,
+                    )),
+                  ),
+                )
               : Container(),
           DefaultTextStyle(
             style: TextStyle(
@@ -467,9 +498,12 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
 
   void _editToAddItem(int index) {
     editingToAdd = index;
-    controllerToAdd.text =
-        Settings.smartSuggestionRules[index].itemToAdd;
+    controllerToAdd.text = Settings.smartSuggestionRules[index].itemToAdd;
     setState(() {});
+  }
+
+  void _onEditDays(int index, int days) {
+    Settings.setRuleDays(index, days);
   }
 
   void _moveRuleUp(int index) {

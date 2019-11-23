@@ -131,7 +131,9 @@ class _TimingPageState extends State<TimingPage> {
   Future<void> _onReceiveAddFromNotification(MethodCall call) async {
     switch(call.method) {
       case "add":
-        _addCurrentTime(_getSuggestion());
+        final suggestion = _getSuggestion();
+        _addCurrentTime(suggestion);
+        _showNotification("New Record Added", suggestion);
     }
   }
 
