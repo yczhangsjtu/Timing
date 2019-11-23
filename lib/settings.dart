@@ -343,6 +343,174 @@ class SmartSuggestionRuleCard extends StatelessWidget {
   }
 }
 
+class _SmartRulesPage extends StatefulWidget {
+  @override
+  State<StatefulWidget> createState() {
+    return _SmartRulesPageState();
+  }
+}
+
+class _SmartRulesPageState extends State<_SmartRulesPage> {
+  TextEditingController controllerAfterItem;
+  TextEditingController controllerToAdd;
+  int editing;
+  int editingAfterItem;
+  int editingToAdd;
+
+  @override
+  void initState() {
+    super.initState();
+    Settings.settings.addListener(_onSettingsChanged);
+    controllerAfterItem = TextEditingController();
+    controllerToAdd = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    controllerAfterItem.dispose();
+    controllerToAdd.dispose();
+    Settings.settings.removeListener(_onSettingsChanged);
+    super.dispose();
+  }
+
+
+  void _onSettingsChanged() {
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    List<SmartSuggestionRuleCard> ruleCards = [];
+    for (int i = 0; i < Settings.smartSuggestionRules.length; i++) {
+      ruleCards.add(SmartSuggestionRuleCard(
+        Settings.smartSuggestionRules[i],
+        i,
+        editing == i,
+        editing == null ? () => _editRule(i) : null,
+        editingAfterItem == null && editingToAdd == null
+            ? _finishEditRule
+            : null,
+        editingAfterItem == i,
+        controllerAfterItem,
+            () => _finishEditAfterItem(i),
+        _cancelEditAfterItem,
+        editing == i && editingAfterItem == null
+            ? () => _editAfterItem(i)
+            : null,
+        editingToAdd == i,
+        controllerToAdd,
+            () => _finishEditToAddItem(i),
+        _cancelEditToAddItem,
+        editing == i && editingToAdd == null ? () => _editToAddItem(i) : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () => _moveRuleUp(i)
+            : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () => _moveRuleDown(i)
+            : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () => _moveRuleToTop(i)
+            : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () => _removeRule(i)
+            : null,
+      ));
+    }
+    return Scaffold(
+      appBar: AppBar(title: Text("Smart Suggestion Rules")),
+      body: ListView(
+        children: <Widget>[
+          editing == null
+              ? GestureDetector(
+            onTap: () {
+              Settings.addRule(SmartSuggestionRule(), index: 0);
+            },
+            child: Container(
+              margin: EdgeInsets.only(top: 16),
+              height: 48,
+              child: Center(
+                  child: Icon(
+                    Icons.add,
+                    size: 32,
+                    color: Colors.blueAccent,
+                  )),
+            ),
+          )
+              : Container(),
+          DefaultTextStyle(
+            style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+                color: Colors.black),
+            child: Column(
+              children: ruleCards,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _editRule(int index) {
+    editing = index;
+    setState(() {});
+  }
+
+  void _finishEditRule() {
+    editing = null;
+    setState(() {});
+  }
+
+  void _finishEditAfterItem(int index) {
+    editingAfterItem = null;
+    Settings.setRuleAfterItem(index, controllerAfterItem.text);
+  }
+
+  void _cancelEditAfterItem() {
+    editingAfterItem = null;
+    setState(() {});
+  }
+
+  void _editAfterItem(int index) {
+    editingAfterItem = index;
+    controllerAfterItem.text = Settings.smartSuggestionRules[index].afterItem;
+    setState(() {});
+  }
+
+  void _finishEditToAddItem(int index) {
+    editingToAdd = null;
+    Settings.setRuleItemToAdd(index, controllerToAdd.text);
+  }
+
+  void _cancelEditToAddItem() {
+    editingToAdd = null;
+    setState(() {});
+  }
+
+  void _editToAddItem(int index) {
+    editingToAdd = index;
+    controllerToAdd.text =
+        Settings.smartSuggestionRules[index].itemToAdd;
+    setState(() {});
+  }
+
+  void _moveRuleUp(int index) {
+    if (Settings.switchRule(index - 1)) editing = index - 1;
+  }
+
+  void _moveRuleDown(int index) {
+    if (Settings.switchRule(index)) editing = index + 1;
+  }
+
+  void _moveRuleToTop(int index) {
+    editing = Settings.moveRuleToTop(index);
+  }
+
+  void _removeRule(int index) {
+    if (Settings.removeRule(index)) editing = null;
+  }
+}
+
 class Settings extends StatefulWidget {
   static ValueNotifier<SettingsValue> settings;
 
@@ -462,130 +630,16 @@ class Settings extends StatefulWidget {
 
 class _SettingsState extends State<Settings> {
   double _thresholdGravity;
-  TextEditingController controllerAfterItem;
-  TextEditingController controllerToAdd;
-  int editing;
-  int editingAfterItem;
-  int editingToAdd;
-
-  void _onSettingsChanged() {
-    setState(() {});
-  }
 
   @override
   void initState() {
     super.initState();
     _thresholdGravity = Settings.thresholdGravity;
-    Settings.settings.addListener(_onSettingsChanged);
-    controllerAfterItem = TextEditingController();
-    controllerToAdd = TextEditingController();
   }
 
-  @override
-  void dispose() {
-    controllerAfterItem.dispose();
-    controllerToAdd.dispose();
-    Settings.settings.removeListener(_onSettingsChanged);
-    super.dispose();
-  }
-
-  void _editRule(int index) {
-    editing = index;
-    setState(() {});
-  }
-
-  void _finishEditRule() {
-    editing = null;
-    setState(() {});
-  }
-
-  void _finishEditAfterItem(int index) {
-    editingAfterItem = null;
-    Settings.setRuleAfterItem(index, controllerAfterItem.text);
-  }
-
-  void _cancelEditAfterItem() {
-    editingAfterItem = null;
-    setState(() {});
-  }
-
-  void _editAfterItem(int index) {
-    editingAfterItem = index;
-    controllerAfterItem.text = Settings.smartSuggestionRules[index].afterItem;
-    setState(() {});
-  }
-
-  void _finishEditToAddItem(int index) {
-    editingToAdd = null;
-    Settings.setRuleItemToAdd(index, controllerToAdd.text);
-  }
-
-  void _cancelEditToAddItem() {
-    editingToAdd = null;
-    setState(() {});
-  }
-
-  void _editToAddItem(int index) {
-      editingToAdd = index;
-      controllerToAdd.text =
-          Settings.smartSuggestionRules[index].itemToAdd;
-      setState(() {});
-  }
-
-  void _moveRuleUp(int index) {
-    if (Settings.switchRule(index - 1)) editing = index - 1;
-  }
-
-  void _moveRuleDown(int index) {
-    if (Settings.switchRule(index)) editing = index + 1;
-  }
-
-  void _moveRuleToTop(int index) {
-    editing = Settings.moveRuleToTop(index);
-  }
-
-  void _removeRule(int index) {
-    if (Settings.removeRule(index)) editing = null;
-  }
 
   @override
   Widget build(BuildContext context) {
-    List<SmartSuggestionRuleCard> ruleCards = [];
-    for (int i = 0; i < Settings.smartSuggestionRules.length; i++) {
-      ruleCards.add(SmartSuggestionRuleCard(
-        Settings.smartSuggestionRules[i],
-        i,
-        editing == i,
-        editing == null ? () => _editRule(i) : null,
-        editingAfterItem == null && editingToAdd == null
-            ? _finishEditRule
-            : null,
-        editingAfterItem == i,
-        controllerAfterItem,
-        () => _finishEditAfterItem(i),
-        _cancelEditAfterItem,
-        editing == i && editingAfterItem == null
-            ? () => _editAfterItem(i)
-            : null,
-        editingToAdd == i,
-        controllerToAdd,
-        () => _finishEditToAddItem(i),
-        _cancelEditToAddItem,
-        editing == i && editingToAdd == null ? () => _editToAddItem(i) : null,
-        editingToAdd == null && editingAfterItem == null
-            ? () => _moveRuleUp(i)
-            : null,
-        editingToAdd == null && editingAfterItem == null
-            ? () => _moveRuleDown(i)
-            : null,
-        editingToAdd == null && editingAfterItem == null
-            ? () => _moveRuleToTop(i)
-            : null,
-        editingToAdd == null && editingAfterItem == null
-            ? () => _removeRule(i)
-            : null,
-      ));
-    }
     return WillPopScope(
       onWillPop: () {
         SchedulerBinding.instance.addPostFrameCallback((_) {
@@ -599,73 +653,68 @@ class _SettingsState extends State<Settings> {
         ),
         body: DefaultTextStyle(
           style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
-          child: ListView(
-            children: <Widget>[
-              Container(
-                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text("Shake Detector Threshold"),
-                    Container(
-                      padding:
-                          EdgeInsets.symmetric(vertical: 16, horizontal: 0),
-                      child: Slider(
-                        value: _thresholdGravity,
-                        min: 0.5,
-                        max: 10.0,
-                        divisions: 95,
-                        label: _thresholdGravity.toStringAsFixed(1),
-                        onChanged: (value) {
-                          setState(() {
-                            _thresholdGravity = value;
-                          });
-                        },
+              fontSize: 18, color: Colors.black),
+          child: Container(
+            color: Colors.grey[200],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start,
+              mainAxisSize: MainAxisSize.max,
+              children: <Widget>[
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  color: Colors.white,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text("Shake Detector Threshold"),
+                      Container(
+                        padding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 0),
+                        child: Slider(
+                          value: _thresholdGravity,
+                          min: 0.5,
+                          max: 10.0,
+                          divisions: 95,
+                          label: _thresholdGravity.toStringAsFixed(1),
+                          onChanged: (value) {
+                            setState(() {
+                              _thresholdGravity = value;
+                            });
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              Container(
-                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    Text("Smart Suggestion Rules"),
-                    editing == null
-                        ? GestureDetector(
-                            onTap: () {
-                              Settings.addRule(SmartSuggestionRule(), index: 0);
-                            },
-                            child: Container(
-                              margin: EdgeInsets.only(top: 16),
-                              height: 48,
-                              child: Center(
-                                  child: Icon(
-                                Icons.add,
-                                size: 32,
-                                color: Colors.blueAccent,
-                              )),
-                            ),
-                          )
-                        : Container(),
-                    DefaultTextStyle(
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.normal,
-                          color: Colors.black),
-                      child: Column(
-                        children: ruleCards,
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            ],
+                Container(
+                  padding: EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+                  decoration: BoxDecoration(
+                    border: Border(top: BorderSide(
+                        color: Colors.grey[300], width: 1)),
+                    color: Colors.white
+                  ),
+                  child: InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+                        return _SmartRulesPage();
+                      }));
+                    },
+                    child: Row(
+                      children: <Widget>[
+                        Expanded(
+                          child: Text("Smart Suggestion Rules"),
+                        ),
+                        Icon(Icons.chevron_right, color: Colors.grey)
+                      ],
+                    )
+                  )
+                )
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
 }
