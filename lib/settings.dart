@@ -92,6 +92,17 @@ class Settings extends StatefulWidget {
     return index;
   }
 
+  static int moveRuleToBottom(int index) {
+    if (Settings.smartSuggestionRules.length-1 > index && index >= 0) {
+      final rule = Settings.smartSuggestionRules[index];
+      Settings.smartSuggestionRules.removeAt(index);
+      Settings.smartSuggestionRules.add(rule);
+      set(smartSuggestionRules: Settings.smartSuggestionRules);
+      return Settings.smartSuggestionRules.length-1;
+    }
+    return index;
+  }
+
   static bool removeRule(int index) {
     if (Settings.smartSuggestionRules.length > index && index >= 0) {
       Settings.smartSuggestionRules.removeAt(index);

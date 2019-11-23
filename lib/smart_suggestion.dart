@@ -100,6 +100,7 @@ class SmartSuggestionRuleCard extends StatelessWidget {
   final VoidCallback onMoveUp;
   final VoidCallback onMoveDown;
   final VoidCallback onMoveToTop;
+  final VoidCallback onMoveToBottom;
   final VoidCallback onRemove;
   final double bottomButtonSize;
   final EdgeInsets bottomButtonPadding;
@@ -124,6 +125,7 @@ class SmartSuggestionRuleCard extends StatelessWidget {
       this.onMoveUp,
       this.onMoveDown,
       this.onMoveToTop,
+      this.onMoveToBottom,
       this.onRemove,
       {this.bottomButtonSize = 20,
       this.bottomButtonPadding = const EdgeInsets.all(2)});
@@ -312,6 +314,11 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                       padding: bottomButtonPadding,
                       onPressed: onMoveToTop),
                   IconButton(
+                      icon: Icon(Icons.vertical_align_bottom),
+                      iconSize: bottomButtonSize,
+                      padding: bottomButtonPadding,
+                      onPressed: onMoveToBottom),
+                  IconButton(
                       icon: Icon(Icons.keyboard_arrow_up),
                       iconSize: bottomButtonSize,
                       padding: bottomButtonPadding,
@@ -421,6 +428,9 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
             ? () => _moveRuleToTop(i)
             : null,
         editingToAdd == null && editingAfterItem == null
+            ? () => _moveRuleToBottom(i)
+            : null,
+        editingToAdd == null && editingAfterItem == null
             ? () => _removeRule(i)
             : null,
       ));
@@ -516,6 +526,10 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
 
   void _moveRuleToTop(int index) {
     editing = Settings.moveRuleToTop(index);
+  }
+
+  void _moveRuleToBottom(int index) {
+    editing = Settings.moveRuleToBottom(index);
   }
 
   void _removeRule(int index) {
