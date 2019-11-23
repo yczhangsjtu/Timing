@@ -41,6 +41,27 @@ class SmartSuggestionRule {
   assert(previousItem != null),
   assert(itemToAdd != null);
 
+  factory SmartSuggestionRule.deserialize(String line) {
+    if(line == null || line.isEmpty || line.trim().isEmpty) {
+      return null;
+    }
+    final parts = line.split(":");
+    if(parts.length != 4) {
+      return null;
+    }
+    final startTime = int.parse(parts[0]);
+    final endTime = int.parse(parts[1]);
+    if(endTime <= startTime || startTime < 0 || endTime >= 1440) {
+      return null;
+    }
+    return SmartSuggestionRule(
+        startTime: startTime,
+        endTime: endTime,
+        previousItem: decodeBase64String(parts[2]),
+        itemToAdd: decodeBase64String(parts[3])
+    );
+  }
+
   SmartSuggestionRule copyWith({
     int startTime,
     int endTime,
@@ -233,8 +254,12 @@ class Settings extends StatefulWidget {
     }
   }
 
-  static void addRule(SmartSuggestionRule rule) {
-    Settings.smartSuggestionRules.add(rule);
+  static void addRule(SmartSuggestionRule rule, {int index}) {
+    if(index == null || index < 0 ||
+        index > Settings.smartSuggestionRules.length) {
+      Settings.smartSuggestionRules.add(rule);
+    }
+    Settings.smartSuggestionRules.insert(index, rule);
     set(smartSuggestionRules: Settings.smartSuggestionRules);
   }
 
@@ -428,19 +453,9 @@ class _SettingsState extends State<Settings> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text("Smart Suggestion Rules"),
-                    DefaultTextStyle(
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.normal,
-                        color: Colors.black
-                      ),
-                      child: Column(
-                        children: ruleCards,
-                      ),
-                    ),
                     GestureDetector(
                       onTap: () {
-                        Settings.addRule(SmartSuggestionRule());
+                        Settings.addRule(SmartSuggestionRule(), index: 0);
                       },
                       child: Container(
                         margin: EdgeInsets.only(top: 16),
@@ -450,6 +465,16 @@ class _SettingsState extends State<Settings> {
                             color: Colors.grey[300]
                         ),
                         child: Center(child: Icon(Icons.add, size: 32)),
+                      ),
+                    ),
+                    DefaultTextStyle(
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.normal,
+                        color: Colors.black
+                      ),
+                      child: Column(
+                        children: ruleCards,
                       ),
                     ),
                   ],

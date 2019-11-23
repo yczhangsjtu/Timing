@@ -355,24 +355,9 @@ class _TimingPageState extends State<TimingPage> {
       String s = await file.readAsString();
       List<SmartSuggestionRule> rules = [];
       s.split("\n").forEach((line) {
-        if(line == null || line.isEmpty || line.trim().isEmpty) {
-          return;
-        }
-        final parts = line.split(":");
-        if(parts.length != 4) {
-          return;
-        }
-        final startTime = int.parse(parts[0]);
-        final endTime = int.parse(parts[1]);
-        if(endTime <= startTime || startTime < 0 || endTime >= 1440) {
-          return;
-        }
-        rules.add(SmartSuggestionRule(
-          startTime: startTime,
-          endTime: endTime,
-          previousItem: decodeBase64String(parts[2]),
-          itemToAdd: decodeBase64String(parts[3])
-        ));
+        final rule = SmartSuggestionRule.deserialize(line);
+        if(rule != null)
+          rules.add(rule);
       });
       Settings.set(smartSuggestionRules: rules);
     } catch (e) {
