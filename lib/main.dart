@@ -19,39 +19,6 @@ void main() => runApp(TimingApp());
 
 
 
-class _TimeItem {
-  int day;
-  int time;
-  String content;
-
-  _TimeItem(this.day, this.time, this.content);
-
-
-  String toString() {
-    return "$day:$time:${encodeBase64String(content)}";
-  }
-
-  static _TimeItem fromString(String s) {
-    int i = s.indexOf(":");
-    if (i < 0) return null;
-    int j = s.indexOf(":", i + 1);
-    if (j < 0) return null;
-    return i < 0
-        ? null
-        : _TimeItem(
-            int.parse(s.substring(0, i)),
-            int.parse(s.substring(i + 1, j)),
-            decodeBase64String(s.substring(j + 1)));
-  }
-
-  static int compare(_TimeItem item1, _TimeItem item2) {
-    if (item1.day < item2.day) return -1;
-    if (item1.day > item2.day) return 1;
-    if (item1.time < item2.time) return -1;
-    if (item1.time > item2.time) return 1;
-    return 0;
-  }
-}
 
 class TimingApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -86,7 +53,7 @@ class TimingPage extends StatefulWidget {
 }
 
 class _TimingPageState extends State<TimingPage> {
-  List<_TimeItem> _list = <_TimeItem>[];
+  List<TimeItem> _list = <TimeItem>[];
   List<String> _candidates = <String>["工作", "学习", "休息", "睡觉"];
   List<String> _filteredCandidates = [];
   int _editing;
@@ -194,7 +161,7 @@ class _TimingPageState extends State<TimingPage> {
     final current = now.hour * 60 + now.minute;
     final lastItem = _list.isEmpty ? "" : _list[_list.length-1].content;
     for(int i = 0; i < Settings.smartSuggestionRules.length; i++) {
-      if(Settings.smartSuggestionRules[i].match(current, lastItem)) {
+      if(Settings.smartSuggestionRules[i].match(current, _list)) {
         return Settings.smartSuggestionRules[i].itemToAdd;
       }
     }
@@ -302,7 +269,7 @@ class _TimingPageState extends State<TimingPage> {
     int t = time.hour * 60 + time.minute;
     int d = DateTimeUtils.yearMonthDayToInt(time.year, time.month, time.day);
     setState(() {
-      _list.add(_TimeItem(d, t, content));
+      _list.add(TimeItem(d, t, content));
       _saveList();
       _showPersistentNotification();
     });
@@ -315,14 +282,14 @@ class _TimingPageState extends State<TimingPage> {
       setState(() {
         _list = s
             .split("\n")
-            .map((line) => _TimeItem.fromString(line))
+            .map((line) => TimeItem.fromString(line))
             .where((item) => item != null)
             .toList();
-        _list.sort(_TimeItem.compare);
+        _list.sort(TimeItem.compare);
       });
     } catch (e) {
       setState(() {
-        _list = <_TimeItem>[];
+        _list = <TimeItem>[];
       });
     }
   }
@@ -384,7 +351,7 @@ class _TimingPageState extends State<TimingPage> {
 
   void _clear() {
     setState(() {
-      _list = <_TimeItem>[];
+      _list = <TimeItem>[];
       _saveList();
     });
   }
@@ -554,7 +521,7 @@ class _TimingPageState extends State<TimingPage> {
     );
   }
 
-  Widget _buildItem(_TimeItem item, int index) {
+  Widget _buildItem(TimeItem item, int index) {
     if (item == null) {
       return Container();
     }
@@ -643,7 +610,7 @@ class _TimingPageState extends State<TimingPage> {
               if (day == null) return;
               _list[index].day =
                   DateTimeUtils.yearMonthDayToInt(day.year, day.month, day.day);
-              _list.sort(_TimeItem.compare);
+              _list.sort(TimeItem.compare);
               setState(() {});
               _saveList();
             }),
@@ -660,7 +627,7 @@ class _TimingPageState extends State<TimingPage> {
                 .then((time) {
               if (time == null) return;
               _list[index].time = time.minute + time.hour * 60;
-              _list.sort(_TimeItem.compare);
+              _list.sort(TimeItem.compare);
               setState(() {});
               _saveList();
             }),

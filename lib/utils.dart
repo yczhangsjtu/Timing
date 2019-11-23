@@ -143,3 +143,37 @@ class DateTimeUtils {
     return y * 10000 + m * 100 + d;
   }
 }
+
+class TimeItem {
+  int day;
+  int time;
+  String content;
+
+  TimeItem(this.day, this.time, this.content);
+
+
+  String toString() {
+    return "$day:$time:${encodeBase64String(content)}";
+  }
+
+  static TimeItem fromString(String s) {
+    int i = s.indexOf(":");
+    if (i < 0) return null;
+    int j = s.indexOf(":", i + 1);
+    if (j < 0) return null;
+    return i < 0
+        ? null
+        : TimeItem(
+        int.parse(s.substring(0, i)),
+        int.parse(s.substring(i + 1, j)),
+        decodeBase64String(s.substring(j + 1)));
+  }
+
+  static int compare(TimeItem item1, TimeItem item2) {
+    if (item1.day < item2.day) return -1;
+    if (item1.day > item2.day) return 1;
+    if (item1.time < item2.time) return -1;
+    if (item1.time > item2.time) return 1;
+    return 0;
+  }
+}

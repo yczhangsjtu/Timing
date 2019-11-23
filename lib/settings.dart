@@ -156,6 +156,14 @@ class Settings extends StatefulWidget {
     }
   }
 
+  static void setDontRepeat(int index, bool value) {
+    if (Settings.smartSuggestionRules.length > index &&
+        index >= 0 && value != null) {
+      final rule = Settings.smartSuggestionRules[index];
+      setRule(index, rule.copyWith(dontRepeat: value));
+    }
+  }
+
   @override
   State<StatefulWidget> createState() {
     return _SettingsState();

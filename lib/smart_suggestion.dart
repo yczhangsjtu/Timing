@@ -9,18 +9,21 @@ class SmartSuggestionRule {
   final String afterItem;
   final String itemToAdd;
   final int days;
+  final bool dontRepeat;
 
   SmartSuggestionRule(
       {this.startTime = 0,
       this.endTime = 1439,
       this.afterItem = "",
       this.itemToAdd = "",
-      this.days = 127})
+      this.days = 127,
+      this.dontRepeat = false})
       : assert(startTime != null),
         assert(endTime != null),
         assert(afterItem != null),
         assert(itemToAdd != null),
-        assert(days != null && days >= 0 && days <= 127);
+        assert(days != null && days >= 0 && days <= 127),
+        assert(dontRepeat != null);
 
   factory SmartSuggestionRule.deserialize(String line) {
     if (line == null || line.isEmpty || line.trim().isEmpty) {
@@ -38,12 +41,14 @@ class SmartSuggestionRule {
     final afterItem = parts.length <= 2 ? "" : decodeBase64String(parts[2]);
     final itemToAdd = parts.length <= 3 ? "" : decodeBase64String(parts[3]);
     final days = parts.length <= 4 ? 127 : int.parse(parts[4]);
+    final dontRepeat = parts.length <= 5 ? false : int.parse(parts[5]) == 1;
     return SmartSuggestionRule(
         startTime: startTime,
         endTime: endTime,
         afterItem: afterItem,
         itemToAdd: itemToAdd,
-        days: days);
+        days: days,
+        dontRepeat: dontRepeat);
   }
 
   SmartSuggestionRule copyWith(
@@ -51,17 +56,19 @@ class SmartSuggestionRule {
       int endTime,
       String afterItem,
       String itemToAdd,
-      int days}) {
+      int days,
+      bool dontRepeat}) {
     return SmartSuggestionRule(
         startTime: startTime ?? this.startTime,
         endTime: endTime ?? this.endTime,
         afterItem: afterItem ?? this.afterItem,
         itemToAdd: itemToAdd ?? this.itemToAdd,
-        days: days ?? this.days);
+        days: days ?? this.days,
+        dontRepeat: dontRepeat ?? this.dontRepeat);
   }
 
   String serialize() {
-    return "$startTime:$endTime:${encodeBase64String(afterItem)}:${encodeBase64String(itemToAdd)}:$days";
+    return "$startTime:$endTime:${encodeBase64String(afterItem)}:${encodeBase64String(itemToAdd)}:$days:${dontRepeat ? 1 : 0}";
   }
 
   String display() {
@@ -73,9 +80,20 @@ class SmartSuggestionRule {
     return day >= 0 && day <= 6 && (days & (1 << day)) > 0;
   }
 
-  bool match(int time, String lastItem) {
+  bool match(int time, List<TimeItem> items) {
+    if (dontRepeat) {
+      for (var item in items) {
+        if (startTime <= item.time &&
+            time <= endTime &&
+            item.content == itemToAdd) {
+          return false;
+        }
+      }
+    }
     return startTime <= time && time <= endTime &&
-        (afterItem == lastItem || afterItem == "")  &&
+        (items.isEmpty ||
+            afterItem == items[items.length - 1].content ||
+            afterItem == "") &&
         hasDay(DateTimeUtils.dayOfWeek(DateTimeUtils.today()));
   }
 }
@@ -97,6 +115,7 @@ class SmartSuggestionRuleCard extends StatelessWidget {
   final VoidCallback onCancelToAdd;
   final VoidCallback onEditToAdd;
   final ValueChanged<int> onUpdateDays;
+  final ValueChanged<bool> onUpdateDontRepeat;
   final VoidCallback onMoveUp;
   final VoidCallback onMoveDown;
   final VoidCallback onMoveToTop;
@@ -122,6 +141,7 @@ class SmartSuggestionRuleCard extends StatelessWidget {
       this.onCancelToAdd,
       this.onEditToAdd,
       this.onUpdateDays,
+      this.onUpdateDontRepeat,
       this.onMoveUp,
       this.onMoveDown,
       this.onMoveToTop,
@@ -306,6 +326,17 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                 }).toList(),
               ),
               Row(
+                children: <Widget>[
+                  Text("Don't Repeat: "),
+                  Checkbox(
+                    value: rule.dontRepeat,
+                    onChanged: (bool value) {
+                      onUpdateDontRepeat(value);
+                    },
+                  ),
+                ],
+              ),
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
                   IconButton(
@@ -418,6 +449,7 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
         _cancelEditToAddItem,
         editing == i && editingToAdd == null ? () => _editToAddItem(i) : null,
         (days) => _onEditDays(i, days),
+        (dontRepeat) => _onUpdateDontRepeat(i, dontRepeat),
         editingToAdd == null && editingAfterItem == null
             ? () => _moveRuleUp(i)
             : null,
@@ -514,6 +546,10 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
 
   void _onEditDays(int index, int days) {
     Settings.setRuleDays(index, days);
+  }
+
+  void _onUpdateDontRepeat(int index, bool value) {
+    Settings.setDontRepeat(index, value);
   }
 
   void _moveRuleUp(int index) {
