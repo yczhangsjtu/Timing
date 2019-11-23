@@ -95,10 +95,8 @@ class SmartSuggestionRule {
         }
       }
     }
-    return startTime <= time &&
-        time <= endTime &&
-        (items.isEmpty ||
-            afterItem == items[items.length - 1].content ||
+    return startTime <= time && time <= endTime &&
+        ((items.isEmpty && afterItem == items[items.length - 1].content) ||
             afterItem == "") &&
         hasDay(DateTimeUtils.dayOfWeek(DateTimeUtils.today()));
   }
