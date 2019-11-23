@@ -29,16 +29,16 @@ class SettingsValue {
 class SmartSuggestionRule {
   final int startTime;
   final int endTime;
-  final String previousItem;
+  final String afterItem;
   final String itemToAdd;
   SmartSuggestionRule({
       this.startTime = 0,
       this.endTime = 1439,
-      this.previousItem = "",
+      this.afterItem = "",
       this.itemToAdd = ""}) :
   assert(startTime != null),
   assert(endTime != null),
-  assert(previousItem != null),
+  assert(afterItem != null),
   assert(itemToAdd != null);
 
   factory SmartSuggestionRule.deserialize(String line) {
@@ -57,7 +57,7 @@ class SmartSuggestionRule {
     return SmartSuggestionRule(
         startTime: startTime,
         endTime: endTime,
-        previousItem: decodeBase64String(parts[2]),
+        afterItem: decodeBase64String(parts[2]),
         itemToAdd: decodeBase64String(parts[3])
     );
   }
@@ -65,34 +65,34 @@ class SmartSuggestionRule {
   SmartSuggestionRule copyWith({
     int startTime,
     int endTime,
-    String previousItem,
+    String afterItem,
     String itemToAdd}) {
     return SmartSuggestionRule(
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
-      previousItem: previousItem ?? this.previousItem,
+      afterItem: afterItem ?? this.afterItem,
       itemToAdd: itemToAdd ?? this.itemToAdd,
     );
   }
 
   String serialize() {
-    return "$startTime:$endTime:${encodeBase64String(previousItem)}:${encodeBase64String(itemToAdd)}";
+    return "$startTime:$endTime:${encodeBase64String(afterItem)}:${encodeBase64String(itemToAdd)}";
   }
 
   bool match(int time, String lastItem) {
     return startTime <= time && time <= endTime &&
-        (previousItem == lastItem || previousItem == "");
+        (afterItem == lastItem || afterItem == "");
   }
 }
 
 class SmartSuggestionRuleCard extends StatelessWidget {
   final SmartSuggestionRule rule;
   final int index;
-  final bool editingPrevious;
-  final TextEditingController controllerPrevious;
-  final VoidCallback onConfirmPrevious;
-  final VoidCallback onCancelPrevious;
-  final VoidCallback onEditPrevious;
+  final bool editingAfterItem;
+  final TextEditingController controllerAfterItem;
+  final VoidCallback onConfirmAfterItem;
+  final VoidCallback onCancelAfterItem;
+  final VoidCallback onEditAfterItem;
   final bool editingToAdd;
   final TextEditingController controllerToAdd;
   final VoidCallback onConfirmToAdd;
@@ -105,11 +105,11 @@ class SmartSuggestionRuleCard extends StatelessWidget {
   SmartSuggestionRuleCard(
     this.rule,
     this.index,
-    this.editingPrevious,
-    this.controllerPrevious,
-    this.onConfirmPrevious,
-    this.onCancelPrevious,
-    this.onEditPrevious,
+    this.editingAfterItem,
+    this.controllerAfterItem,
+    this.onConfirmAfterItem,
+    this.onCancelAfterItem,
+    this.onEditAfterItem,
     this.editingToAdd,
     this.controllerToAdd,
     this.onConfirmToAdd,
@@ -173,20 +173,20 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                 ],
               ),
               Row(children: <Widget>[
-                Text("Previous: "),
+                Text("After: "),
                 Expanded(
-                  child: editingPrevious
-                      ? TextField(controller: controllerPrevious)
-                      : Text(rule.previousItem),
+                  child: editingAfterItem
+                      ? TextField(controller: controllerAfterItem)
+                      : Text(rule.afterItem),
                 ),
-                editingPrevious
+                editingAfterItem
                   ? Row(
                       children: <Widget>[
-                        IconButton(icon: Icon(Icons.check), onPressed: onConfirmPrevious),
-                        IconButton(icon: Icon(Icons.clear), onPressed: onCancelPrevious)
+                        IconButton(icon: Icon(Icons.check), onPressed: onConfirmAfterItem),
+                        IconButton(icon: Icon(Icons.clear), onPressed: onCancelAfterItem)
                       ],
                     )
-                  : IconButton(icon: Icon(Icons.edit), onPressed: onEditPrevious)
+                  : IconButton(icon: Icon(Icons.edit), onPressed: onEditAfterItem)
               ],),
               Row(children: <Widget>[
                 Text("To Add: "),
@@ -308,10 +308,10 @@ class Settings extends StatefulWidget {
     }
   }
 
-  static void setRulePreviousItem(int index, String previousItem) {
-    if(Settings.smartSuggestionRules.length > index && index >= 0 && previousItem != null) {
+  static void setRuleAfterItem(int index, String afterItem) {
+    if(Settings.smartSuggestionRules.length > index && index >= 0 && afterItem != null) {
       final rule = Settings.smartSuggestionRules[index];
-      setRule(index, rule.copyWith(previousItem: previousItem));
+      setRule(index, rule.copyWith(afterItem: afterItem));
     }
   }
 
@@ -331,9 +331,9 @@ class Settings extends StatefulWidget {
 class _SettingsState extends State<Settings> {
 
   double _thresholdGravity;
-  TextEditingController controllerPrevious;
+  TextEditingController controllerAfterItem;
   TextEditingController controllerToAdd;
-  int editingPrevious;
+  int editingAfterItem;
   int editingToAdd;
 
   void _onSettingsChanged() {
@@ -345,13 +345,13 @@ class _SettingsState extends State<Settings> {
     super.initState();
     _thresholdGravity = Settings.thresholdGravity;
     Settings.settings.addListener(_onSettingsChanged);
-    controllerPrevious = TextEditingController();
+    controllerAfterItem = TextEditingController();
     controllerToAdd = TextEditingController();
   }
 
   @override
   void dispose() {
-    controllerPrevious.dispose();
+    controllerAfterItem.dispose();
     controllerToAdd.dispose();
     Settings.settings.removeListener(_onSettingsChanged);
     super.dispose();
@@ -364,19 +364,19 @@ class _SettingsState extends State<Settings> {
       ruleCards.add(SmartSuggestionRuleCard(
         Settings.smartSuggestionRules[i],
         i,
-        editingPrevious == i,
-        controllerPrevious,
+        editingAfterItem == i,
+        controllerAfterItem,
         () {
-          editingPrevious = null;
-          Settings.setRulePreviousItem(i, controllerPrevious.text);
+          editingAfterItem = null;
+          Settings.setRuleAfterItem(i, controllerAfterItem.text);
         },
         () {
-          editingPrevious = null;
+          editingAfterItem = null;
           setState(() {});
         },
         () {
-          editingPrevious = i;
-          controllerPrevious.text = Settings.smartSuggestionRules[i].previousItem;
+          editingAfterItem = i;
+          controllerAfterItem.text = Settings.smartSuggestionRules[i].afterItem;
           setState(() {});
         },
         editingToAdd == i,
@@ -394,16 +394,16 @@ class _SettingsState extends State<Settings> {
           controllerToAdd.text = Settings.smartSuggestionRules[i].itemToAdd;
           setState(() {});
         },
-        editingToAdd == null && editingPrevious == null ? () {
+        editingToAdd == null && editingAfterItem == null ? () {
           Settings.switchRule(i-1);
         } : null,
-        editingToAdd == null && editingPrevious == null ? () {
+        editingToAdd == null && editingAfterItem == null ? () {
           Settings.switchRule(i);
         } : null,
-        editingToAdd == null && editingPrevious == null ? () {
+        editingToAdd == null && editingAfterItem == null ? () {
           Settings.moveRuleToTop(i);
         } : null,
-        editingToAdd == null && editingPrevious == null ? () {
+        editingToAdd == null && editingAfterItem == null ? () {
           Settings.removeRule(i);
         } : null,
       ));
