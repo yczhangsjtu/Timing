@@ -9,20 +9,19 @@ class SettingsValue {
 
   static const double _defaultThresholdGravity = 3.5;
 
-  SettingsValue({
-    this.thresholdGravity = _defaultThresholdGravity,
-    List<SmartSuggestionRule> smartSuggestionRules}) :
-  assert(thresholdGravity != null),
-  this.smartSuggestionRules = smartSuggestionRules ?? [];
+  SettingsValue(
+      {this.thresholdGravity = _defaultThresholdGravity,
+      List<SmartSuggestionRule> smartSuggestionRules})
+      : assert(thresholdGravity != null),
+        this.smartSuggestionRules = smartSuggestionRules ?? [];
 
-  SettingsValue copyWith({
-    double thresholdGravity,
-    List<SmartSuggestionRule> smartSuggestionRules
-  }) {
+  SettingsValue copyWith(
+      {double thresholdGravity,
+      List<SmartSuggestionRule> smartSuggestionRules}) {
     return SettingsValue(
-      thresholdGravity: thresholdGravity ?? this.thresholdGravity,
-      smartSuggestionRules: smartSuggestionRules ?? this.smartSuggestionRules
-    );
+        thresholdGravity: thresholdGravity ?? this.thresholdGravity,
+        smartSuggestionRules:
+            smartSuggestionRules ?? this.smartSuggestionRules);
   }
 }
 
@@ -31,42 +30,39 @@ class SmartSuggestionRule {
   final int endTime;
   final String afterItem;
   final String itemToAdd;
-  SmartSuggestionRule({
-      this.startTime = 0,
+
+  SmartSuggestionRule(
+      {this.startTime = 0,
       this.endTime = 1439,
       this.afterItem = "",
-      this.itemToAdd = ""}) :
-  assert(startTime != null),
-  assert(endTime != null),
-  assert(afterItem != null),
-  assert(itemToAdd != null);
+      this.itemToAdd = ""})
+      : assert(startTime != null),
+        assert(endTime != null),
+        assert(afterItem != null),
+        assert(itemToAdd != null);
 
   factory SmartSuggestionRule.deserialize(String line) {
-    if(line == null || line.isEmpty || line.trim().isEmpty) {
+    if (line == null || line.isEmpty || line.trim().isEmpty) {
       return null;
     }
     final parts = line.split(":");
-    if(parts.length != 4) {
+    if (parts.length != 4) {
       return null;
     }
     final startTime = int.parse(parts[0]);
     final endTime = int.parse(parts[1]);
-    if(endTime <= startTime || startTime < 0 || endTime >= 1440) {
+    if (endTime <= startTime || startTime < 0 || endTime >= 1440) {
       return null;
     }
     return SmartSuggestionRule(
         startTime: startTime,
         endTime: endTime,
         afterItem: decodeBase64String(parts[2]),
-        itemToAdd: decodeBase64String(parts[3])
-    );
+        itemToAdd: decodeBase64String(parts[3]));
   }
 
-  SmartSuggestionRule copyWith({
-    int startTime,
-    int endTime,
-    String afterItem,
-    String itemToAdd}) {
+  SmartSuggestionRule copyWith(
+      {int startTime, int endTime, String afterItem, String itemToAdd}) {
     return SmartSuggestionRule(
       startTime: startTime ?? this.startTime,
       endTime: endTime ?? this.endTime,
@@ -79,8 +75,14 @@ class SmartSuggestionRule {
     return "$startTime:$endTime:${encodeBase64String(afterItem)}:${encodeBase64String(itemToAdd)}";
   }
 
+  String display() {
+    return "${DateTimeUtils.timeToString(startTime)} - ${DateTimeUtils.timeToString(endTime)}:" +
+        " Add $itemToAdd${afterItem.isNotEmpty ? " After $afterItem" : ""}";
+  }
+
   bool match(int time, String lastItem) {
-    return startTime <= time && time <= endTime &&
+    return startTime <= time &&
+        time <= endTime &&
         (afterItem == lastItem || afterItem == "");
   }
 }
@@ -88,6 +90,9 @@ class SmartSuggestionRule {
 class SmartSuggestionRuleCard extends StatelessWidget {
   final SmartSuggestionRule rule;
   final int index;
+  final bool editing;
+  final VoidCallback onEdit;
+  final VoidCallback onFinishEdit;
   final bool editingAfterItem;
   final TextEditingController controllerAfterItem;
   final VoidCallback onConfirmAfterItem;
@@ -102,25 +107,79 @@ class SmartSuggestionRuleCard extends StatelessWidget {
   final VoidCallback onMoveDown;
   final VoidCallback onMoveToTop;
   final VoidCallback onRemove;
+  final double bottomButtonSize;
+  final EdgeInsets bottomButtonPadding;
+
   SmartSuggestionRuleCard(
-    this.rule,
-    this.index,
-    this.editingAfterItem,
-    this.controllerAfterItem,
-    this.onConfirmAfterItem,
-    this.onCancelAfterItem,
-    this.onEditAfterItem,
-    this.editingToAdd,
-    this.controllerToAdd,
-    this.onConfirmToAdd,
-    this.onCancelToAdd,
-    this.onEditToAdd,
-    this.onMoveUp,
-    this.onMoveDown,
-    this.onMoveToTop,
-    this.onRemove);
-  @override
-  Widget build(BuildContext context) {
+      this.rule,
+      this.index,
+      this.editing,
+      this.onEdit,
+      this.onFinishEdit,
+      this.editingAfterItem,
+      this.controllerAfterItem,
+      this.onConfirmAfterItem,
+      this.onCancelAfterItem,
+      this.onEditAfterItem,
+      this.editingToAdd,
+      this.controllerToAdd,
+      this.onConfirmToAdd,
+      this.onCancelToAdd,
+      this.onEditToAdd,
+      this.onMoveUp,
+      this.onMoveDown,
+      this.onMoveToTop,
+      this.onRemove,
+      {this.bottomButtonSize = 20,
+      this.bottomButtonPadding = const EdgeInsets.all(2)});
+
+  Widget _buildDisplay(BuildContext context) {
+    return Container(
+        padding: EdgeInsets.only(top: 4),
+        child: Container(
+          padding: EdgeInsets.all(8),
+          decoration: BoxDecoration(
+              border:
+                  Border(top: BorderSide(color: Colors.grey[300], width: 1))),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              Expanded(
+                child: RichText(
+                    text: TextSpan(
+                      text: "${DateTimeUtils.timeToString(rule.startTime, padZero: true)}-${DateTimeUtils.timeToString(rule.endTime, padZero: true)}",
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                      children: <TextSpan> [
+                        TextSpan(
+                            text: rule.afterItem.isEmpty ? "  " : "  After ",
+                            style: TextStyle(fontWeight: FontWeight.normal, color: Colors.black)
+                        ),
+                        TextSpan(
+                            text: rule.afterItem,
+                            style: TextStyle(fontWeight: FontWeight.normal, color: Colors.grey)
+                        ),
+                        TextSpan(
+                          text: " Add ",
+                          style: TextStyle(fontWeight: FontWeight.normal, fontSize: 18, color: Colors.black)
+                        ),
+                        TextSpan(
+                            text: rule.itemToAdd.isEmpty ? "Empty" : rule.itemToAdd,
+                            style: TextStyle(fontWeight: FontWeight.normal, fontSize: 18, color: Colors.grey)
+                        ),
+                      ]
+                    )
+                ),
+              ),
+              IconButton(
+                icon: Icon(Icons.edit),
+                onPressed: onEdit,
+              )
+            ],
+          ),
+        ));
+  }
+
+  Widget _buildEditing(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(bottom: 16),
       child: Card(
@@ -128,10 +187,12 @@ class SmartSuggestionRuleCard extends StatelessWidget {
           padding: EdgeInsets.all(12),
           child: Column(
             children: <Widget>[
-              Row(children: <Widget>[
+              Row(
+                children: <Widget>[
                   Text("Start Time: "),
                   Expanded(
-                    child: Text(DateTimeUtils.timeToString(rule.startTime),
+                    child: Text(
+                      DateTimeUtils.timeToString(rule.startTime),
                       style: TextStyle(fontFamily: "Courier"),
                     ),
                   ),
@@ -139,21 +200,25 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                     icon: Icon(Icons.edit),
                     onPressed: () {
                       showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
-                              hour: rule.startTime ~/ 60, minute: rule.startTime % 60))
+                              context: context,
+                              initialTime: TimeOfDay(
+                                  hour: rule.startTime ~/ 60,
+                                  minute: rule.startTime % 60))
                           .then((time) {
                         if (time == null) return;
-                        Settings.setRuleStartTime(this.index, time.minute + time.hour * 60);
+                        Settings.setRuleStartTime(
+                            this.index, time.minute + time.hour * 60);
                       });
                     },
                   )
                 ],
               ),
-              Row(children: <Widget>[
+              Row(
+                children: <Widget>[
                   Text("End Time: "),
                   Expanded(
-                    child: Text(DateTimeUtils.timeToString(rule.endTime),
+                    child: Text(
+                      DateTimeUtils.timeToString(rule.endTime),
                       style: TextStyle(fontFamily: "Courier"),
                     ),
                   ),
@@ -161,55 +226,96 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                     icon: Icon(Icons.edit),
                     onPressed: () {
                       showTimePicker(
-                          context: context,
-                          initialTime: TimeOfDay(
-                              hour: rule.endTime ~/ 60, minute: rule.endTime % 60))
+                              context: context,
+                              initialTime: TimeOfDay(
+                                  hour: rule.endTime ~/ 60,
+                                  minute: rule.endTime % 60))
                           .then((time) {
                         if (time == null) return;
-                        Settings.setRuleEndTime(this.index, time.minute + time.hour * 60);
+                        Settings.setRuleEndTime(
+                            this.index, time.minute + time.hour * 60);
                       });
                     },
                   )
                 ],
               ),
-              Row(children: <Widget>[
-                Text("After: "),
-                Expanded(
-                  child: editingAfterItem
-                      ? TextField(controller: controllerAfterItem)
-                      : Text(rule.afterItem),
-                ),
-                editingAfterItem
-                  ? Row(
-                      children: <Widget>[
-                        IconButton(icon: Icon(Icons.check), onPressed: onConfirmAfterItem),
-                        IconButton(icon: Icon(Icons.clear), onPressed: onCancelAfterItem)
-                      ],
-                    )
-                  : IconButton(icon: Icon(Icons.edit), onPressed: onEditAfterItem)
-              ],),
-              Row(children: <Widget>[
-                Text("To Add: "),
-                Expanded(
-                  child: editingToAdd
-                      ? TextField(controller: controllerToAdd)
-                      : Text(rule.itemToAdd),
-                ),
-                editingToAdd
-                    ? Row(
-                  children: <Widget>[
-                    IconButton(icon: Icon(Icons.check), onPressed: onConfirmToAdd),
-                    IconButton(icon: Icon(Icons.clear), onPressed: onCancelToAdd)
-                  ],
-                )
-                    : IconButton(icon: Icon(Icons.edit), onPressed: onEditToAdd)
-              ],),
+              Row(
+                children: <Widget>[
+                  Text("After: "),
+                  Expanded(
+                    child: editingAfterItem
+                        ? TextField(controller: controllerAfterItem)
+                        : Text(rule.afterItem),
+                  ),
+                  editingAfterItem
+                      ? Row(
+                          children: <Widget>[
+                            IconButton(
+                                icon: Icon(Icons.check),
+                                onPressed: onConfirmAfterItem),
+                            IconButton(
+                                icon: Icon(Icons.clear),
+                                onPressed: onCancelAfterItem)
+                          ],
+                        )
+                      : IconButton(
+                          icon: Icon(Icons.edit), onPressed: onEditAfterItem)
+                ],
+              ),
+              Row(
+                children: <Widget>[
+                  Text("To Add: "),
+                  Expanded(
+                    child: editingToAdd
+                        ? TextField(controller: controllerToAdd)
+                        : Text(rule.itemToAdd),
+                  ),
+                  editingToAdd
+                      ? Row(
+                          children: <Widget>[
+                            IconButton(
+                                icon: Icon(Icons.check),
+                                onPressed: onConfirmToAdd),
+                            IconButton(
+                                icon: Icon(Icons.clear),
+                                onPressed: onCancelToAdd)
+                          ],
+                        )
+                      : IconButton(
+                          icon: Icon(Icons.edit), onPressed: onEditToAdd)
+                ],
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  IconButton(
+                      icon: Icon(Icons.vertical_align_top),
+                      iconSize: bottomButtonSize,
+                      padding: bottomButtonPadding,
+                      onPressed: onMoveToTop),
+                  IconButton(
+                      icon: Icon(Icons.keyboard_arrow_up),
+                      iconSize: bottomButtonSize,
+                      padding: bottomButtonPadding,
+                      onPressed: onMoveUp),
+                  IconButton(
+                      icon: Icon(Icons.keyboard_arrow_down),
+                      iconSize: bottomButtonSize,
+                      padding: bottomButtonPadding,
+                      onPressed: onMoveDown),
+                  IconButton(
+                      icon: Icon(Icons.delete),
+                      iconSize: bottomButtonSize,
+                      padding: bottomButtonPadding,
+                      onPressed: onRemove),
+                ],
+              ),
               ButtonBar(
                 children: <Widget>[
-                  IconButton(icon: Icon(Icons.vertical_align_top), onPressed: onMoveToTop),
-                  IconButton(icon: Icon(Icons.keyboard_arrow_up), onPressed: onMoveUp),
-                  IconButton(icon: Icon(Icons.keyboard_arrow_down), onPressed: onMoveDown),
-                  IconButton(icon: Icon(Icons.delete), onPressed: onRemove),
+                  FlatButton(
+                      child: Text("OK", style: TextStyle(color: Colors.blueAccent),),
+                      padding: bottomButtonPadding,
+                      onPressed: onFinishEdit),
                 ],
               )
             ],
@@ -219,10 +325,13 @@ class SmartSuggestionRuleCard extends StatelessWidget {
     );
   }
 
+  @override
+  Widget build(BuildContext context) {
+    return editing ? _buildEditing(context) : _buildDisplay(context);
+  }
 }
 
 class Settings extends StatefulWidget {
-
   static ValueNotifier<SettingsValue> settings;
 
   static double get thresholdGravity {
@@ -233,29 +342,29 @@ class Settings extends StatefulWidget {
     return settings.value.smartSuggestionRules;
   }
 
-  static void set({
-    double thresholdGravity,
-    List<SmartSuggestionRule> smartSuggestionRules
-  }) {
-    if(smartSuggestionRules == null &&
-       (thresholdGravity == null || thresholdGravity == Settings.thresholdGravity)) {
+  static void set(
+      {double thresholdGravity,
+      List<SmartSuggestionRule> smartSuggestionRules}) {
+    if (smartSuggestionRules == null &&
+        (thresholdGravity == null ||
+            thresholdGravity == Settings.thresholdGravity)) {
       return;
     }
     settings.value = settings.value.copyWith(
-      thresholdGravity: thresholdGravity,
-      smartSuggestionRules: smartSuggestionRules
-    );
+        thresholdGravity: thresholdGravity,
+        smartSuggestionRules: smartSuggestionRules);
   }
 
   static void setRule(int index, SmartSuggestionRule rule) {
-    if(Settings.smartSuggestionRules.length > index && index >= 0) {
+    if (Settings.smartSuggestionRules.length > index && index >= 0) {
       Settings.smartSuggestionRules[index] = rule;
       set(smartSuggestionRules: Settings.smartSuggestionRules);
     }
   }
 
   static void addRule(SmartSuggestionRule rule, {int index}) {
-    if(index == null || index < 0 ||
+    if (index == null ||
+        index < 0 ||
         index > Settings.smartSuggestionRules.length) {
       Settings.smartSuggestionRules.add(rule);
     }
@@ -263,60 +372,71 @@ class Settings extends StatefulWidget {
     set(smartSuggestionRules: Settings.smartSuggestionRules);
   }
 
-  static void switchRule(int index) {
-    if(Settings.smartSuggestionRules.length-1 > index && index >= 0) {
+  static bool switchRule(int index) {
+    if (Settings.smartSuggestionRules.length - 1 > index && index >= 0) {
       final rule = Settings.smartSuggestionRules[index];
-      Settings.smartSuggestionRules[index] = Settings.smartSuggestionRules[index+1];
-      Settings.smartSuggestionRules[index+1] = rule;
+      Settings.smartSuggestionRules[index] =
+          Settings.smartSuggestionRules[index + 1];
+      Settings.smartSuggestionRules[index + 1] = rule;
       set(smartSuggestionRules: Settings.smartSuggestionRules);
+      return true;
     }
+    return false;
   }
 
-  static void moveRuleToTop(int index) {
-    if(Settings.smartSuggestionRules.length > index && index > 0) {
+  static int moveRuleToTop(int index) {
+    if (Settings.smartSuggestionRules.length > index && index > 0) {
       final rule = Settings.smartSuggestionRules[index];
-      for(int i = index; i > 0; i--) {
-        Settings.smartSuggestionRules[i] = Settings.smartSuggestionRules[i-1];
+      for (int i = index; i > 0; i--) {
+        Settings.smartSuggestionRules[i] = Settings.smartSuggestionRules[i - 1];
       }
       Settings.smartSuggestionRules[0] = rule;
       set(smartSuggestionRules: Settings.smartSuggestionRules);
+      return 0;
     }
+    return index;
   }
 
-  static void removeRule(int index) {
-    if(Settings.smartSuggestionRules.length > index && index >= 0) {
+  static bool removeRule(int index) {
+    if (Settings.smartSuggestionRules.length > index && index >= 0) {
       Settings.smartSuggestionRules.removeAt(index);
       set(smartSuggestionRules: Settings.smartSuggestionRules);
+      return true;
     }
+    return false;
   }
 
   static void setRuleStartTime(int index, int startTime) {
-    if(Settings.smartSuggestionRules.length > index && index >= 0) {
+    if (Settings.smartSuggestionRules.length > index && index >= 0) {
       final rule = Settings.smartSuggestionRules[index];
-      if(rule.endTime > startTime && startTime >= 0) {
+      if (rule.endTime > startTime && startTime >= 0) {
         setRule(index, rule.copyWith(startTime: startTime));
       }
     }
   }
 
   static void setRuleEndTime(int index, int endTime) {
-    if(Settings.smartSuggestionRules.length > index && index >= 0) {
+    if (Settings.smartSuggestionRules.length > index && index >= 0) {
       final rule = Settings.smartSuggestionRules[index];
-      if(rule.startTime < endTime && endTime < 1440) {
+      if (rule.startTime < endTime && endTime < 1440) {
         setRule(index, rule.copyWith(endTime: endTime));
       }
     }
   }
 
   static void setRuleAfterItem(int index, String afterItem) {
-    if(Settings.smartSuggestionRules.length > index && index >= 0 && afterItem != null) {
+    if (Settings.smartSuggestionRules.length > index &&
+        index >= 0 &&
+        afterItem != null) {
       final rule = Settings.smartSuggestionRules[index];
       setRule(index, rule.copyWith(afterItem: afterItem));
     }
   }
 
   static void setRuleItemToAdd(int index, String itemToAdd) {
-    if(Settings.smartSuggestionRules.length > index && index >= 0 && itemToAdd != null) {
+    if (Settings.smartSuggestionRules.length > index &&
+        index >= 0 &&
+        itemToAdd != null) {
       final rule = Settings.smartSuggestionRules[index];
       setRule(index, rule.copyWith(itemToAdd: itemToAdd));
     }
@@ -329,10 +449,10 @@ class Settings extends StatefulWidget {
 }
 
 class _SettingsState extends State<Settings> {
-
   double _thresholdGravity;
   TextEditingController controllerAfterItem;
   TextEditingController controllerToAdd;
+  int editing;
   int editingAfterItem;
   int editingToAdd;
 
@@ -360,10 +480,23 @@ class _SettingsState extends State<Settings> {
   @override
   Widget build(BuildContext context) {
     List<SmartSuggestionRuleCard> ruleCards = [];
-    for(int i = 0; i < Settings.smartSuggestionRules.length; i++) {
+    for (int i = 0; i < Settings.smartSuggestionRules.length; i++) {
       ruleCards.add(SmartSuggestionRuleCard(
         Settings.smartSuggestionRules[i],
         i,
+        editing == i,
+        editing == null
+            ? () {
+                editing = i;
+                setState(() {});
+              }
+            : null,
+        editingAfterItem == null && editingToAdd == null
+            ? () {
+                editing = null;
+                setState(() {});
+              }
+            : null,
         editingAfterItem == i,
         controllerAfterItem,
         () {
@@ -374,11 +507,14 @@ class _SettingsState extends State<Settings> {
           editingAfterItem = null;
           setState(() {});
         },
-        () {
-          editingAfterItem = i;
-          controllerAfterItem.text = Settings.smartSuggestionRules[i].afterItem;
-          setState(() {});
-        },
+        editing == i && editingAfterItem == null
+            ? () {
+                editingAfterItem = i;
+                controllerAfterItem.text =
+                    Settings.smartSuggestionRules[i].afterItem;
+                setState(() {});
+              }
+            : null,
         editingToAdd == i,
         controllerToAdd,
         () {
@@ -389,23 +525,34 @@ class _SettingsState extends State<Settings> {
           editingToAdd = null;
           setState(() {});
         },
-        () {
-          editingToAdd = i;
-          controllerToAdd.text = Settings.smartSuggestionRules[i].itemToAdd;
-          setState(() {});
-        },
-        editingToAdd == null && editingAfterItem == null ? () {
-          Settings.switchRule(i-1);
-        } : null,
-        editingToAdd == null && editingAfterItem == null ? () {
-          Settings.switchRule(i);
-        } : null,
-        editingToAdd == null && editingAfterItem == null ? () {
-          Settings.moveRuleToTop(i);
-        } : null,
-        editingToAdd == null && editingAfterItem == null ? () {
-          Settings.removeRule(i);
-        } : null,
+        editing == i && editingToAdd == null
+            ? () {
+                editingToAdd = i;
+                controllerToAdd.text =
+                    Settings.smartSuggestionRules[i].itemToAdd;
+                setState(() {});
+              }
+            : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () {
+                if (Settings.switchRule(i - 1)) editing = i - 1;
+              }
+            : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () {
+                if (Settings.switchRule(i)) editing = i + 1;
+              }
+            : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () {
+                editing = Settings.moveRuleToTop(i);
+              }
+            : null,
+        editingToAdd == null && editingAfterItem == null
+            ? () {
+                if (Settings.removeRule(i)) editing = null;
+              }
+            : null,
       ));
     }
     return WillPopScope(
@@ -420,7 +567,8 @@ class _SettingsState extends State<Settings> {
           title: Text("Settings"),
         ),
         body: DefaultTextStyle(
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
+          style: TextStyle(
+              fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey),
           child: ListView(
             children: <Widget>[
               Container(
@@ -430,7 +578,8 @@ class _SettingsState extends State<Settings> {
                   children: <Widget>[
                     Text("Shake Detector Threshold"),
                     Container(
-                      padding: EdgeInsets.symmetric(vertical: 16, horizontal: 0),
+                      padding:
+                          EdgeInsets.symmetric(vertical: 16, horizontal: 0),
                       child: Slider(
                         value: _thresholdGravity,
                         min: 0.5,
@@ -453,26 +602,23 @@ class _SettingsState extends State<Settings> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
                     Text("Smart Suggestion Rules"),
-                    GestureDetector(
-                      onTap: () {
-                        Settings.addRule(SmartSuggestionRule(), index: 0);
-                      },
-                      child: Container(
-                        margin: EdgeInsets.only(top: 16),
-                        height: 48,
-                        decoration: BoxDecoration(
-                            border: Border.all(color: Colors.grey, width: 2),
-                            color: Colors.grey[300]
-                        ),
-                        child: Center(child: Icon(Icons.add, size: 32)),
-                      ),
-                    ),
+                    editing == null
+                        ? GestureDetector(
+                            onTap: () {
+                              Settings.addRule(SmartSuggestionRule(), index: 0);
+                            },
+                            child: Container(
+                              margin: EdgeInsets.only(top: 16),
+                              height: 48,
+                              child: Center(child: Icon(Icons.add, size: 32, color: Colors.blueAccent,)),
+                            ),
+                          )
+                        : Container(),
                     DefaultTextStyle(
                       style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.normal,
-                        color: Colors.black
-                      ),
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                          color: Colors.black),
                       child: Column(
                         children: ruleCards,
                       ),
@@ -486,5 +632,4 @@ class _SettingsState extends State<Settings> {
       ),
     );
   }
-
 }

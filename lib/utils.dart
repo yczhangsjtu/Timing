@@ -45,13 +45,15 @@ class DateTimeUtils {
     return "${h > 0 ? "${h}h" : ""}${m > 0 ? "${m}m" : ""}";
   }
 
-  static String timeToString(int time) {
+  static String timeToString(int time, {bool padZero = false}) {
     if (time == null) {
       return null;
     }
     var h = time ~/ 60;
     var m = time % 60;
-    return "$h:${m ~/ 10}${m % 10}";
+    return padZero
+      ? "${h ~/ 10}${h % 10}:${m ~/ 10}${m % 10}"
+      : "$h:${m ~/ 10}${m % 10}";
   }
 
   static String dayToString(int day) {
