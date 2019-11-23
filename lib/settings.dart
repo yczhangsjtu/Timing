@@ -328,6 +328,7 @@ class _SettingsState extends State<Settings> {
   void dispose() {
     controllerPrevious.dispose();
     controllerToAdd.dispose();
+    Settings.settings.removeListener(_onSettingsChanged);
     super.dispose();
   }
 
