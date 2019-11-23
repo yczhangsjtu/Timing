@@ -159,10 +159,16 @@ class _TimingPageState extends State<TimingPage> {
     }
     final now = TimeOfDay.now();
     final current = now.hour * 60 + now.minute;
-    final lastItem = _list.isEmpty ? "" : _list[_list.length-1].content;
     for(int i = 0; i < Settings.smartSuggestionRules.length; i++) {
       if(Settings.smartSuggestionRules[i].match(current, _list)) {
-        return Settings.smartSuggestionRules[i].itemToAdd;
+        final rule = Settings.smartSuggestionRules[i];
+        var item = rule.itemToAdd;
+        if(item == SmartSuggestionRule.LAST) {
+          item = _list.length < 2
+              ? ""
+              : _list[_list.length - 2].content;
+        }
+        return item;
       }
     }
     return "";

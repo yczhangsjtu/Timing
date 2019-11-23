@@ -11,6 +11,8 @@ class SmartSuggestionRule {
   final int days;
   final bool dontRepeat;
 
+  static const String LAST = "LAST";
+
   SmartSuggestionRule(
       {this.startTime = 0,
       this.endTime = 1439,
@@ -81,16 +83,20 @@ class SmartSuggestionRule {
   }
 
   bool match(int time, List<TimeItem> items) {
-    if (dontRepeat) {
+    if (itemToAdd == LAST && items.length < 2) {
+      return false;
+    }
+    if (dontRepeat && itemToAdd != LAST) {
       for (var item in items) {
         if (startTime <= item.time &&
-            time <= endTime &&
+            item.time <= endTime &&
             item.content == itemToAdd) {
           return false;
         }
       }
     }
-    return startTime <= time && time <= endTime &&
+    return startTime <= time &&
+        time <= endTime &&
         (items.isEmpty ||
             afterItem == items[items.length - 1].content ||
             afterItem == "") &&
@@ -172,7 +178,7 @@ class SmartSuggestionRuleCard extends StatelessWidget {
                             color: Colors.blueAccent),
                         children: <TextSpan>[
                       TextSpan(
-                          text: rule.afterItem.isEmpty ? "  " : "  After ",
+                          text: rule.afterItem.isEmpty ? "" : " After ",
                           style: TextStyle(
                               fontWeight: FontWeight.normal,
                               color: Colors.black)),
@@ -469,7 +475,7 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
     }
     return Scaffold(
       appBar: AppBar(title: Text("Smart Suggestion Rules")),
-      body: ListView(
+      body: Column(
         children: <Widget>[
           editing == null
               ? GestureDetector(
@@ -488,15 +494,17 @@ class _SmartRulesPageState extends State<SmartRulesPage> {
                   ),
                 )
               : Container(),
-          DefaultTextStyle(
-            style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.normal,
-                color: Colors.black),
-            child: Column(
-              children: ruleCards,
+          Flexible(
+            child: DefaultTextStyle(
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.normal,
+                  color: Colors.black),
+              child: ListView(
+                children: ruleCards,
+              ),
             ),
-          ),
+          )
         ],
       ),
     );
