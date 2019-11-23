@@ -11,6 +11,7 @@ import 'package:shake/shake.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart' as FLN;
 
+import 'smart_suggestion.dart';
 import 'settings.dart';
 import 'utils.dart';
 
